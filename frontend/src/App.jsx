@@ -20,7 +20,6 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/password-reset" element={<PasswordResetPage />} />
-
           {/* Protected routes */}
           <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

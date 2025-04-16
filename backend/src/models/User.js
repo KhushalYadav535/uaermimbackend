@@ -19,7 +19,7 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING(255),
-    allowNull: false,
+    allowNull: true,
     validate: {
       len: [8, 255],
       isStrongPassword(value) {
@@ -86,6 +86,14 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('active', 'inactive', 'suspended'),
     defaultValue: 'active'
   },
+  provider: {
+    type: DataTypes.STRING,
+    allowNull: true, // "local", "google", "facebook", "twitter"
+  },
+  providerId: {
+    type: DataTypes.STRING,
+    allowNull: true, // OAuth ID from provider
+  },
   metadata: {
     type: DataTypes.TEXT,
     defaultValue: '{}',
@@ -129,7 +137,7 @@ const User = sequelize.define('User', {
           previousPasswords.shift();
         }
         previousPasswords.push(user.password);
-        
+
         // Hash new password and update
         const salt = await bcrypt.genSalt(12);
         user.password = await bcrypt.hash(user.password, salt);
@@ -141,11 +149,11 @@ const User = sequelize.define('User', {
 });
 
 // Instance Methods
-User.prototype.validatePassword = async function(password) {
+User.prototype.validatePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-User.prototype.hasPasswordBeenUsed = async function(newPassword) {
+User.prototype.hasPasswordBeenUsed = async function (newPassword) {
   for (const oldPassword of this.previousPasswords) {
     if (await bcrypt.compare(newPassword, oldPassword)) {
       return true;
@@ -154,18 +162,18 @@ User.prototype.hasPasswordBeenUsed = async function(newPassword) {
   return false;
 };
 
-User.prototype.incrementLoginAttempts = async function() {
+User.prototype.incrementLoginAttempts = async function () {
   const updates = { loginAttempts: this.loginAttempts + 1 };
-  
+
   if (updates.loginAttempts >= 5) {
     updates.accountLocked = true;
     updates.accountLockedUntil = new Date(Date.now() + 15 * 60 * 1000);
   }
-  
+
   return await this.update(updates);
 };
 
-User.prototype.resetLoginAttempts = async function() {
+User.prototype.resetLoginAttempts = async function () {
   return await this.update({
     loginAttempts: 0,
     accountLocked: false,
@@ -174,11 +182,11 @@ User.prototype.resetLoginAttempts = async function() {
 };
 
 // Class Methods
-User.findByEmail = async function(email) {
+User.findByEmail = async function (email) {
   return await this.findOne({ where: { email } });
 };
 
-User.prototype.toJSON = function() {
+User.prototype.toJSON = function () {
   const values = Object.assign({}, this.get());
   delete values.password;
   delete values.twoFactorSecret;

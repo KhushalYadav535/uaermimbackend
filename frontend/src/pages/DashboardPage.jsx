@@ -65,15 +65,15 @@ export default function DashboardPage() {
         </div>
         <button onClick={logout} className="logout-button">Logout</button>
       </header>
-      
+
       <nav className="dashboard-nav">
         <div className="nav-links">
-          <Link to="/profile" className="nav-link">My Profile</Link>
+          <Link to="/profile">My Profile</Link>
           {user?.isAdmin && (
             <>
-              <Link to="/admin/users" className="nav-link">User Management</Link>
-              <Link to="/admin/roles" className="nav-link">Role Management</Link>
-              <Link to="/admin/audit-logs" className="nav-link">Audit Logs</Link>
+              <Link to="/admin/users">User Management</Link>
+              <Link to="/admin/roles">Role Management</Link>
+              <Link to="/admin/audit-logs">Audit Logs</Link>
             </>
           )}
         </div>
@@ -96,13 +96,11 @@ export default function DashboardPage() {
               <div className="stat-card">
                 <div className="stat-icon">📊</div>
                 <h3>Recent Activities</h3>
-                <ul className="activity-list">
+                <ul>
                   {stats.recentActivities.map(activity => (
-                    <li key={activity._id} className="activity-item">
-                      <span className="activity-time">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </span>
-                      <span className="activity-action">{activity.action}</span>
+                    <li key={activity._id}>
+                      <span>{new Date(activity.timestamp).toLocaleString()}</span>
+                      <span>{activity.action}</span>
                     </li>
                   ))}
                 </ul>
@@ -115,22 +113,20 @@ export default function DashboardPage() {
           <h2>Quick Actions</h2>
           <div className="action-buttons">
             <button className="action-button">
-              <span className="action-icon">📝</span>
-              Update Profile
+              <span className="action-icon">📝</span> Update Profile
             </button>
             <button className="action-button">
-              <span className="action-icon">🔒</span>
-              Change Password
+              <span className="action-icon">🔒</span> Change Password
             </button>
             {user?.isAdmin && (
               <button className="action-button">
-                <span className="action-icon">➕</span>
-                Add New User
+                <span className="action-icon">➕</span> Add New User
               </button>
             )}
           </div>
         </div>
       </main>
     </div>
+
   );
 }

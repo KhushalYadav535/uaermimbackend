@@ -76,4 +76,34 @@ router.get('/login-history', auth, userController.getLoginHistory);
 // Admin routes
 router.post('/reset-account-lock', auth, userController.resetAccountLock);
 
+
+// Social media Login Routes 
+// Google Login Route
+router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+// Google Callback Route
+router.get('/auth/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
+  const token = generateToken(req.user);
+  res.redirect(`/dashboard?token=${token}`);
+});
+
+// Facebook Login Route
+router.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email'] }));
+
+// Facebook Callback Route
+router.get('/auth/facebook/callback', passport.authenticate('facebook', { session: false }), (req, res) => {
+  const token = generateToken(req.user);
+  res.redirect(`/dashboard?token=${token}`);
+});
+
+// Twitter Login Route
+router.get('/auth/twitter', passport.authenticate('twitter'));
+
+// Twitter Callback Route
+router.get('/auth/twitter/callback', passport.authenticate('twitter', { session: false }), (req, res) => {
+  const token = generateToken(req.user);
+  res.redirect(`/dashboard?token=${token}`);
+});
+
+
 module.exports = router;

@@ -7,6 +7,7 @@ body {
   color: #333;
 }
 
+
 /* Layout Styles */
 .container {
   max-width: 1200px;
@@ -154,11 +155,13 @@ body {
   color: #666;
 }
 
+
 /* Dashboard Styles */
 .dashboard-container {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .dashboard-header {
@@ -169,71 +172,141 @@ body {
 }
 
 .dashboard-header h1 {
-  color: #333;
+  color: #222;
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.header-subtitle {
+  color: #666;
+  font-size: 1rem;
   margin: 0;
 }
 
+.logout-button {
+  padding: 0.6rem 1.2rem;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.logout-button:hover {
+  background-color: #c0392b;
+}
+
 .dashboard-nav {
-  background: white;
+  background: #f9f9f9;
   padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   margin-bottom: 2rem;
 }
 
 .dashboard-nav a {
-  color: #4a90e2;
+  color: #3498db;
   text-decoration: none;
   margin-right: 1.5rem;
-  font-weight: 500;
+  font-weight: 600;
+  transition: color 0.2s ease;
 }
 
 .dashboard-nav a:hover {
-  text-decoration: underline;
+  color: #1d6fa5;
 }
 
 .stats-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
-  margin-top: 2rem;
 }
 
 .stat-card {
   background: white;
   padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .stat-card h3 {
-  color: #666;
-  margin: 0 0 1rem 0;
+  color: #888;
+  margin-bottom: 0.5rem;
   font-size: 1rem;
 }
 
 .stat-card p {
-  color: #333;
+  color: #222;
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
 }
 
 .stat-card ul {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 1rem 0 0 0;
 }
 
 .stat-card li {
   padding: 0.5rem 0;
   border-bottom: 1px solid #eee;
   font-size: 0.875rem;
+  display: flex;
+  justify-content: space-between;
+  color: #555;
 }
 
 .stat-card li:last-child {
   border-bottom: none;
 }
+
+.quick-actions {
+  margin-top: 3rem;
+}
+
+.quick-actions h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #3498db;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s ease;
+}
+
+.action-button:hover {
+  background: #2c80b4;
+}
+
 
 /* Profile Page Styles */
 .profile-container {
