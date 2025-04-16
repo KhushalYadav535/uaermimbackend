@@ -339,7 +339,7 @@ body {
   margin-top: 20px;
 }
 
-.admin-table th, 
+.admin-table th,
 .admin-table td {
   padding: 12px;
   text-align: left;
@@ -556,4 +556,24 @@ body {
   border-radius: 4px;
   margin-top: 1rem;
   font-size: 0.875rem;
+}
+
+/*  Password categories */
+.password-strength.weak {
+  color: #dc2626;
+  /* red-600 */
+}
+
+.password-strength.medium {
+  color: #ca8a04;
+  /* yellow-600 */
+}
+
+.password-strength.strong {
+  color: #16a34a;
+  /* green-600 */
+}
+
+.text-red {
+  color: #b00e3f;
 }

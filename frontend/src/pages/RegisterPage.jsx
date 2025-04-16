@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { FaGoogle, FaFacebook, FaXTwitter } from 'react-icons/fa6';
-
+import { FaEyeSlash, FaRegEye } from "react-icons/fa";
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -16,16 +16,61 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState('');
+  const [passwordMatchError, setPasswordMatchError] = useState('');
+  const [passwordSuggestion, setPasswordSuggestion] = useState('');
+
   const { register } = useAuth();
   const navigate = useNavigate();
   const { signInWithGoogle, signInWithFacebook, signInWithTwitter } = useAuth();
-  
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     // Clear field error when user types
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
+    // check password strength for password field
+    if (name === 'password') {
+      const strength = checkPasswordStrength(value);
+      setPasswordStrength(strength);
+
+      // Clear old suggestions
+      setPasswordSuggestion('');
+
+      // Suggest improvements
+      const suggestions = [];
+      if (value.length < 12) suggestions.push('Use at least 12 characters');
+      if (!/[A-Z]/.test(value)) suggestions.push('Add an uppercase letter');
+      if (!/[a-z]/.test(value)) suggestions.push('Add a lowercase letter');
+      if (!/[0-9]/.test(value)) suggestions.push('Add a number');
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) suggestions.push('Add a special character');
+      setPasswordSuggestion(suggestions.join(', '));
+    }
+
+    // check password match for confirmation field 
+    if (name === 'confirmPassword') {
+      if (value !== formData.password) {
+        setPasswordMatchError("Passwords do not match")
+      } else {
+        setPasswordMatchError('');
+      }
+    }
+
+  };
+  const checkPasswordStrength = (password) => {
+    const regexes = {
+      weak: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      medium: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/,
+    };
+
+    if (regexes.weak.test(password)) {
+      return 'strong';
+    } else if (regexes.medium.test(password)) {
+      return 'medium';
+    } else {
+      return 'weak';
     }
   };
 
@@ -98,6 +143,7 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="auth-form">
+          {/* First name field  */}
           <div className="form-group">
             <label htmlFor="firstName">First Name</label>
             <input
@@ -114,7 +160,7 @@ export default function RegisterPage() {
               <div className="error-message">{fieldErrors.firstName}</div>
             )}
           </div>
-
+          {/*  Last name field */}
           <div className="form-group">
             <label htmlFor="lastName">Last Name</label>
             <input
@@ -131,7 +177,7 @@ export default function RegisterPage() {
               <div className="error-message">{fieldErrors.lastName}</div>
             )}
           </div>
-
+          {/* Email input field */}
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
             <input
@@ -150,6 +196,7 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {/* Password input field */}
           <div className="form-group password-group">
             <label htmlFor="password">Password</label>
             <div className="password-input-wrapper">
@@ -171,17 +218,30 @@ export default function RegisterPage() {
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 tabIndex={-1}
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? (
+                  <FaEyeSlash className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <FaRegEye className="w-5 h-5 text-gray-600" />
+                )}
               </button>
             </div>
             {fieldErrors.password && (
               <div className="error-message">{fieldErrors.password}</div>
             )}
+            <div className={`password-strength ${passwordStrength}`}>
+              Strength: {passwordStrength.charAt(0).toUpperCase() + passwordStrength.slice(1)}
+            </div>
             <span className="password-hint">
               Password must contain at least 12 characters, including an uppercase letter, lowercase letter, number, and special character.
             </span>
-          </div>
+            {passwordSuggestion && (
+              <div className="text-sm text-red mt-1">
+                Suggestions: {passwordSuggestion}
+              </div>
+            )}
 
+          </div>
+          {/* password confirmation fields  */}
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password</label>
             <input
@@ -195,11 +255,11 @@ export default function RegisterPage() {
               autoComplete="new-password"
               placeholder="Re-enter your password"
             />
-            {fieldErrors.confirmPassword && (
-              <div className="error-message">{fieldErrors.confirmPassword}</div>
+            {passwordMatchError && (
+              <div className="error-message">{passwordMatchError}</div>
             )}
           </div>
-
+          {/* Social media registration */}
           <div className="social-login mt-6">
             <p className="text-center text-sm text-gray-500 mb-3">or sign up with</p>
             <div className="flex justify-center gap-4">
@@ -231,7 +291,7 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
-
+          {/*  Submit button  */}
           <button
             type="submit"
             disabled={loading}
