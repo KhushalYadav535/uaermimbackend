@@ -23,6 +23,8 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.getProfile();
       if (data.user) {
+        // Add isSuperAdmin flag from backend user data
+        data.user.isSuperAdmin = data.user.isSuperAdmin || false;
         setUser(data.user);
         // Redirect to dashboard if on login/register page
         if (['/login', '/register'].includes(location.pathname)) {

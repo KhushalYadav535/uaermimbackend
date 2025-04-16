@@ -31,7 +31,9 @@ const auth = async (req, res, next) => {
       }
     }
 
-    user.isAdmin = user.Roles.some(role => role.name === 'admin');
+    const userRoles = user.Roles.map(role => role.name);
+    user.isAdmin = userRoles.includes('admin');
+    user.isSuperAdmin = userRoles.includes('superadmin');
 
     req.user = user;
     req.token = token;

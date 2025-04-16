@@ -1,26 +1,91 @@
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const permissionController = require('../controllers/permissionController');
 const { auth, checkRole, checkPermission } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+const audit = require('../middleware/audit');
 
-// Validation middleware
+// Rate limiting
+const permLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many permission requests'
+});
+
+// Validation
 const validatePermission = [
-  body('name').notEmpty().withMessage('Permission name is required'),
-  body('description').optional(),
-  body('module').notEmpty().withMessage('Module is required'),
-  body('action').notEmpty().withMessage('Action is required')
+  body('name')
+    .notEmpty().withMessage('Permission name is required')
+    .isLength({ max: 50 }).withMessage('Name too long (max 50 chars)')
+    .matches(/^[a-z_]+$/).withMessage('Only lowercase and underscore allowed'),
+  body('description')
+    .optional()
+    .isLength({ max: 255 }).withMessage('Description too long'),
+  body('module')
+    .notEmpty().withMessage('Module is required')
+    .isIn(['user', 'role', 'permission', 'content', 'settings']), // Configure your modules
+  body('action')
+    .notEmpty().withMessage('Action is required')
+    .isIn(['create', 'read', 'update', 'delete', 'manage'])
 ];
 
-// Protected routes - Admin access required
-router.post('/', auth, checkRole(['admin']), validatePermission, permissionController.createPermission);
-router.get('/', auth, checkRole(['admin']), permissionController.getPermissions);
-router.get('/:id', auth, checkRole(['admin']), permissionController.getPermission);
-router.put('/:id', auth, checkRole(['admin']), validatePermission, permissionController.updatePermission);
-router.delete('/:id', auth, checkRole(['admin']), permissionController.deletePermission);
+// Apply rate limiting
+router.use(permLimiter);
+
+// CRUD Routes
+router.post('/', 
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_permissions'),
+  audit,
+  validatePermission,
+  permissionController.createPermission
+);
+
+router.get('/', 
+  auth,
+  checkRole(['admin']),
+  checkPermission('view_permissions'),
+  permissionController.getPermissions
+);
+
+router.get('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('view_permissions'),
+  permissionController.getPermission
+);
+
+router.put('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_permissions'),
+  audit,
+  validatePermission,
+  permissionController.updatePermission
+);
+
+router.delete('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_permissions'),
+  audit,
+  permissionController.deletePermission
+);
 
 // Module-specific routes
-router.get('/module/:module', auth, checkRole(['admin']), permissionController.getPermissionsByModule);
-router.get('/modules/available', auth, checkRole(['admin']), permissionController.getAvailableModules);
+router.get('/module/:module', 
+  auth,
+  checkRole(['admin']),
+  param('module').isIn(['user', 'role', 'permission', 'content', 'settings']),
+  permissionController.getPermissionsByModule
+);
 
-module.exports = router; 
+router.get('/modules/available', 
+  auth,
+  checkRole(['admin']),
+  permissionController.getAvailableModules
+);
+
+module.exports = router;

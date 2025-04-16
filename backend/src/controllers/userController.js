@@ -8,7 +8,13 @@ const register = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array().map(err => ({
+          field: err.param,
+          message: err.msg
+        }))
+      });
     }
 
     const { email, password, firstName, lastName } = req.body;
@@ -16,7 +22,10 @@ const register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ 
+        error: 'Email already registered',
+        field: 'email'
+      });
     }
 
     // Create new user
@@ -24,7 +33,10 @@ const register = async (req, res) => {
       email,
       password,
       firstName,
-      lastName
+      lastName,
+      isEmailVerified: false,
+      loginAttempts: 0,
+      accountLocked: false
     });
 
     // Assign default role
@@ -41,24 +53,61 @@ const register = async (req, res) => {
     );
 
     // TODO: Send verification email
+    console.log('Verification token:', verificationToken);
+
+    // Generate auth token for immediate login
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: false,
+        isSuperAdmin: false
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Log the registration
+    await AuditLog.create({
+      user_id: user.id,
+      action: 'create',
+      entity_type: 'User',
+      entity_id: user.id,
+      details: { message: 'New user registration' },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || req.headers['user-agent'],
+      status: 'success'
+    });
 
     res.status(201).json({
       message: 'User registered successfully',
+      token,
       user: {
         id: user.id,
         email: user.email,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        isEmailVerified: user.isEmailVerified,
+        isAdmin: false,
+        isSuperAdmin: false
       }
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during registration. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
 const login = async (req, res) => {
   try {
     const { email, password, rememberMe } = req.body;
+
+    console.log(`Login attempt for email: ${email}`);
 
     const user = await User.findOne({ 
       where: { email },
@@ -67,32 +116,77 @@ const login = async (req, res) => {
         attributes: ['name']
       }]
     });
-    
+
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log(`Login failed: User not found for email ${email}`);
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Skip account lockout checks for testing
-    user.accountLocked = false;
-    user.loginAttempts = 0;
+    // Check if account is locked, but bypass for superadmin
+    const isSuperAdmin = user.Roles.some(role => role.name === 'superadmin');
+    if (user.accountLocked && !isSuperAdmin) {
+      if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+        const timeLeft = Math.ceil((user.accountLockedUntil - new Date()) / 1000 / 60);
+        console.log(`Login failed: Account locked for email ${email}`);
+        return res.status(403).json({ 
+          error: 'Account is locked due to too many failed attempts',
+          timeLeft: `${timeLeft} minutes`
+        });
+      } else {
+        // Reset lock if time has passed
+        user.accountLocked = false;
+        user.loginAttempts = 0;
+        user.accountLockedUntil = null;
+        await user.save();
+      }
+    }
 
     const isValidPassword = await user.validatePassword(password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log(`Login failed: Invalid password for email ${email}`);
+      
+      // Increment failed attempts
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      
+      // Lock account after 5 failed attempts
+      if (user.loginAttempts >= 5) {
+        user.accountLocked = true;
+        user.accountLockedUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
+        await user.save();
+        return res.status(403).json({ 
+          error: 'Too many failed attempts. Account locked for 30 minutes.'
+        });
+      }
+      
+      await user.save();
+      return res.status(401).json({ 
+        error: 'Invalid email or password',
+        attemptsLeft: 5 - user.loginAttempts
+      });
     }
 
-    // Skip login attempt tracking for testing
+    // Reset login attempts on successful login
+    user.loginAttempts = 0;
+    user.accountLocked = false;
+    user.accountLockedUntil = null;
     user.lastLogin = new Date();
     await user.save();
 
+    // Generate token with more user info
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { 
+        id: user.id, 
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.Roles.some(role => role.name === 'admin'),
+        isSuperAdmin: user.Roles.some(role => role.name === 'superadmin')
+      },
       process.env.JWT_SECRET,
       { expiresIn: rememberMe ? '7d' : '24h' }
     );
 
-    // Check if user has admin role
-    const isAdmin = user.Roles.some(role => role.name === 'admin');
+    console.log(`Login successful for email: ${email}`);
 
     res.json({
       token,
@@ -102,11 +196,13 @@ const login = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         isEmailVerified: user.isEmailVerified,
-        isAdmin
+        isAdmin: user.Roles.some(role => role.name === 'admin'),
+        isSuperAdmin: user.Roles.some(role => role.name === 'superadmin')
       }
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'An error occurred during login. Please try again.' });
   }
 };
 
@@ -226,7 +322,7 @@ const getProfile = async (req, res) => {
       }]
     });
 
-    res.json(user);
+    res.json({ user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -272,6 +368,83 @@ const getLoginHistory = async (req, res) => {
   }
 };
 
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findByPk(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const newToken = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      token: newToken,
+      user: {
+        id: user.id,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    // Invalidate the token (if using a token blacklist, add it here)
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const resetAccountLock = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Only super admin can reset account locks
+    if (!req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Only super admin can reset account locks' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Reset the lock
+    user.loginAttempts = 0;
+    user.accountLocked = false;
+    user.accountLockedUntil = null;
+    await user.save();
+
+    // Log the action
+    await AuditLog.create({
+      userId: req.user.id,
+      action: 'reset_account_lock',
+      details: `Account lock reset for user ${email}`,
+      ipAddress: req.ip
+    });
+
+    res.json({ message: 'Account lock reset successfully' });
+  } catch (error) {
+    console.error('Reset account lock error:', error);
+    res.status(500).json({ error: 'An error occurred while resetting account lock' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -281,5 +454,8 @@ module.exports = {
   changePassword,
   getProfile,
   updateProfile,
-  getLoginHistory
-}; 
+  getLoginHistory,
+  refreshToken,
+  logout,
+  resetAccountLock
+};

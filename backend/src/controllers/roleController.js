@@ -87,6 +87,29 @@ const deleteRole = async (req, res) => {
   }
 };
 
+const softDeleteRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const role = await Role.findByPk(id);
+    if (!role) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    if (role.isSystemRole) {
+      return res.status(403).json({ error: 'Cannot delete system roles' });
+    }
+
+    // Soft delete by setting deletedAt timestamp
+    role.deletedAt = new Date();
+    await role.save();
+    
+    res.json({ message: 'Role soft deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const getRoles = async (req, res) => {
   try {
     const roles = await Role.findAll({
@@ -172,8 +195,9 @@ module.exports = {
   createRole,
   updateRole,
   deleteRole,
+  softDeleteRole,
   getRoles,
   getRole,
   assignRoleToUser,
   removeRoleFromUser
-}; 
+};

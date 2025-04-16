@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -24,6 +25,10 @@ export default function RegisterPage() {
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(prev => !prev);
   };
 
   const handleSubmit = async (e) => {
@@ -108,22 +113,33 @@ export default function RegisterPage() {
             onChange={handleChange}
             required
             disabled={loading}
+            autoComplete="username"
           />
           {fieldErrors.email && <div className="error-message">{fieldErrors.email}</div>}
         </div>
-        <div className="form-group">
+        <div className="form-group password-group">
           <label>Password</label>
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             name="password"
             value={formData.password}
             onChange={handleChange}
             required
             disabled={loading}
+            style={{ backgroundColor: 'transparent', color: 'inherit' }}
+            autoComplete="new-password"
           />
+          <button
+            type="button"
+            onClick={toggleShowPassword}
+            className="show-password-btn"
+            tabIndex={-1}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
           {fieldErrors.password && <div className="error-message">{fieldErrors.password}</div>}
           <span className="password-hint">
-            Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character
+            Password must contain at least 12 characters, one uppercase letter, one lowercase letter, one number and one special character
           </span>
         </div>
         <div className="form-group">
@@ -135,6 +151,7 @@ export default function RegisterPage() {
             onChange={handleChange}
             required
             disabled={loading}
+            autoComplete="new-password"
           />
           {fieldErrors.confirmPassword && <div className="error-message">{fieldErrors.confirmPassword}</div>}
         </div>

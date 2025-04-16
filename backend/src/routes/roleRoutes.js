@@ -1,32 +1,97 @@
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const roleController = require('../controllers/roleController');
 const { auth, checkRole, checkPermission } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+const auditLog = require('../middleware/audit');
 
-// Validation middleware
+// Rate limiting
+const roleLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many role management requests'
+});
+
+// Validation
 const validateRole = [
-  body('name').notEmpty().withMessage('Role name is required'),
-  body('description').optional(),
-  body('permissions').optional().isArray().withMessage('Permissions must be an array')
+  body('name')
+    .notEmpty().withMessage('Role name is required')
+    .isLength({ max: 50 }).withMessage('Role name too long')
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Only alphanumeric and underscore allowed'),
+  body('description')
+    .optional()
+    .isLength({ max: 255 }).withMessage('Description too long'),
+  body('permissions')
+    .optional()
+    .isArray().withMessage('Permissions must be an array')
+    .custom((value) => {
+      if (value && value.some(isNaN)) {
+        throw new Error('Permissions must be numeric IDs');
+      }
+      return true;
+    })
 ];
 
-// Protected routes - Admin access required
-router.post('/', auth, checkRole(['admin']), validateRole, roleController.createRole);
-router.get('/', auth, checkRole(['admin']), roleController.getRoles);
-router.get('/:id', auth, checkRole(['admin']), roleController.getRole);
-router.put('/:id', auth, checkRole(['admin']), validateRole, roleController.updateRole);
-router.delete('/:id', auth, checkRole(['admin']), roleController.deleteRole);
+// Apply rate limiting to all role routes
+router.use(roleLimiter);
 
-// Role assignment routes
-router.post('/assign', auth, checkRole(['admin']), [
-  body('userId').notEmpty().withMessage('User ID is required'),
-  body('roleId').notEmpty().withMessage('Role ID is required')
-], roleController.assignRoleToUser);
+// Role CRUD
+router.post('/', 
+  auth, 
+  checkRole(['admin']),
+  checkPermission('manage_roles'),
+  auditLog,
+  validateRole,
+  roleController.createRole
+);
 
-router.post('/remove', auth, checkRole(['admin']), [
-  body('userId').notEmpty().withMessage('User ID is required'),
-  body('roleId').notEmpty().withMessage('Role ID is required')
-], roleController.removeRoleFromUser);
+router.get('/', 
+  auth,
+  checkRole(['admin']),
+  checkPermission('view_roles'),
+  roleController.getRoles
+);
 
-module.exports = router; 
+router.get('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('view_roles'),
+  roleController.getRole
+);
+
+router.put('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_roles'),
+  auditLog,
+  validateRole,
+  roleController.updateRole
+);
+
+router.delete('/:id',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_roles'),
+  auditLog,
+  roleController.deleteRole
+);
+
+// Role assignment
+router.post('/assign',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_roles'),
+  auditLog,
+  roleController.assignRoleToUser
+);
+
+router.post('/remove',
+  auth,
+  checkRole(['admin']),
+  checkPermission('manage_roles'),
+  auditLog,
+  roleController.removeRoleFromUser
+);
+
+module.exports = router;
