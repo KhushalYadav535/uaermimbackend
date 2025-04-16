@@ -4,7 +4,7 @@ const { body, param } = require('express-validator');
 const userController = require('../controllers/userController');
 const { auth } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
-
+const passport = require('passport');
 // Rate limiting
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
