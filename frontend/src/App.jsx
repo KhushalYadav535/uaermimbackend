@@ -10,6 +10,7 @@ import AuditLogPage from './pages/admin/AuditLogPage';
 import ProfilePage from './pages/ProfilePage';
 import PasswordResetPage from './pages/PasswordResetPage';
 import './App.css';
+import SuperAdminDashboard from './pages/superAdmin/SuperAdminDashboard';
 
 function App() {
   return (
@@ -27,6 +28,8 @@ function App() {
           <Route path="/admin/users" element={<PrivateRoute><UserManagementPage /></PrivateRoute>} />
           <Route path="/admin/roles" element={<PrivateRoute><RoleManagementPage /></PrivateRoute>} />
           <Route path="/admin/audit-logs" element={<PrivateRoute><AuditLogPage /></PrivateRoute>} />
+          {/* Super admin */}
+          <Route path='/superAdmin' element={<SuperAdminDashboard />} />
         </Routes>
       </AuthProvider>
     </Router>

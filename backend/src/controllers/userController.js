@@ -8,7 +8,7 @@ const register = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Validation failed',
         details: errors.array().map(err => ({
           field: err.param,
@@ -22,7 +22,7 @@ const register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Email already registered',
         field: 'email'
       });
@@ -57,8 +57,8 @@ const register = async (req, res) => {
 
     // Generate auth token for immediate login
     const token = jwt.sign(
-      { 
-        id: user.id, 
+      {
+        id: user.id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -96,7 +96,7 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'An error occurred during registration. Please try again.',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -109,7 +109,7 @@ const login = async (req, res) => {
 
     console.log(`Login attempt for email: ${email}`);
 
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       where: { email },
       include: [{
         model: Role,
@@ -128,7 +128,7 @@ const login = async (req, res) => {
       if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
         const timeLeft = Math.ceil((user.accountLockedUntil - new Date()) / 1000 / 60);
         console.log(`Login failed: Account locked for email ${email}`);
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Account is locked due to too many failed attempts',
           timeLeft: `${timeLeft} minutes`
         });
@@ -144,22 +144,22 @@ const login = async (req, res) => {
     const isValidPassword = await user.validatePassword(password);
     if (!isValidPassword) {
       console.log(`Login failed: Invalid password for email ${email}`);
-      
+
       // Increment failed attempts
       user.loginAttempts = (user.loginAttempts || 0) + 1;
-      
+
       // Lock account after 5 failed attempts
       if (user.loginAttempts >= 5) {
         user.accountLocked = true;
         user.accountLockedUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
         await user.save();
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Too many failed attempts. Account locked for 30 minutes.'
         });
       }
-      
+
       await user.save();
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid email or password',
         attemptsLeft: 5 - user.loginAttempts
       });
@@ -174,8 +174,8 @@ const login = async (req, res) => {
 
     // Generate token with more user info
     const token = jwt.sign(
-      { 
-        id: user.id, 
+      {
+        id: user.id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -371,7 +371,7 @@ const getLoginHistory = async (req, res) => {
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
       return res.status(400).json({ error: 'Refresh token is required' });
     }
@@ -413,7 +413,7 @@ const logout = async (req, res) => {
 const resetAccountLock = async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     // Only super admin can reset account locks
     if (!req.user.isSuperAdmin) {
       return res.status(403).json({ error: 'Only super admin can reset account locks' });
@@ -444,6 +444,7 @@ const resetAccountLock = async (req, res) => {
     res.status(500).json({ error: 'An error occurred while resetting account lock' });
   }
 };
+
 
 module.exports = {
   register,
