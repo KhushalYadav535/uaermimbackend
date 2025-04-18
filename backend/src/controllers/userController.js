@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const { Op } = require('sequelize');
+const { sendMail } = require('../services/emailService');
+
 
 const register = async (req, res) => {
   try {
@@ -53,6 +55,24 @@ const register = async (req, res) => {
     );
 
     // TODO: Send verification email
+    console.log('Sending mail to:', user.email);
+    await sendMail(
+      user.email,
+      'Welcome! You\'re registered 🎉',
+      'Please verify your email address to complete your registration.',
+      `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <p>Hello ${user.firstName},</p>
+          <p>Welcome to <strong>Sentient CRM</strong> — we’re thrilled to have you on board!</p>
+          <p>Your account has been successfully created, and you’re all set to start managing your customer relationships more efficiently.</p>
+          <p>With <strong>Sentient CRM</strong>, you can track leads, manage contacts, and gain valuable insights to grow your business.</p>
+          <p>If you didn’t sign up for this account, feel free to disregard this message.</p>
+          <p style="margin-top: 30px;">Warm regards,<br>
+          <strong>Team <br /> Sentient Digital</strong></p>
+        </div>
+      `
+    );
+    
     console.log('Verification token:', verificationToken);
 
     // Generate auth token for immediate login
