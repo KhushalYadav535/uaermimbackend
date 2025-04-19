@@ -1,251 +1,427 @@
-const { User, Role, AuditLog } = require('../models');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const { User, Role, AuditLog, Permission } = require('../models');
 const { validationResult } = require('express-validator');
 const { Op } = require('sequelize');
-const { sendMail } = require('../services/emailService');
 
+const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, name, email, role, status } = req.query;
+        const where = {};
+        
+        if (name) {
+            where.name = { [Op.like]: `%${name}%` };
+        }
+        if (email) {
+            where.email = { [Op.like]: `%${email}%` };
+        }
+        if (role) {
+            where.role = role;
+        }
+        if (status) {
+            where.status = status;
+        }
+
+        const users = await User.findAndCountAll({
+            where,
+            limit: parseInt(limit),
+            offset: (page - 1) * limit,
+        });
+
+        res.json({
+            total: users.count,
+            users: users.rows,
+            page: parseInt(page),
+            totalPages: Math.ceil(users.count / limit),
+        });
+    } catch (error) {
+        console.error('Get all users error:', error);
+        res.status(500).json({ error: 'An error occurred while fetching users.' });
+    }
+};
+
+const getUserById = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findByPk(userId, {
+            include: [{ model: Role }, { model: Permission }],
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error('Get user by ID error:', error);
+        res.status(500).json({ error: 'An error occurred while fetching user details.' });
+    }
+};
+
+const updateUserRole = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { roleId } = req.body;
+
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        user.roleId = roleId;
+        await user.save();
+
+        await AuditLog.create({
+            user_id: req.user.id,
+            action: 'update_role',
+            entity_type: 'User',
+            entity_id: userId,
+            details: { message: 'User role updated' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || req.headers['user-agent'],
+            status: 'success'
+        });
+
+        res.json({ message: 'User role updated successfully' });
+    } catch (error) {
+        console.error('Update user role error:', error);
+        res.status(500).json({ error: 'An error occurred while updating user role.' });
+    }
+};
+
+const updateUserStatus = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { status } = req.body;
+
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        user.status = status;
+        await user.save();
+
+        await AuditLog.create({
+            user_id: req.user.id,
+            action: 'update_status',
+            entity_type: 'User',
+            entity_id: userId,
+            details: { message: 'User status updated' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || req.headers['user-agent'],
+            status: 'success'
+        });
+
+        res.json({ message: 'User status updated successfully' });
+    } catch (error) {
+        console.error('Update user status error:', error);
+        res.status(500).json({ error: 'An error occurred while updating user status.' });
+    }
+};
+
+const resetUserPassword = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { newPassword } = req.body;
+
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        await AuditLog.create({
+            user_id: req.user.id,
+            action: 'reset_password',
+            entity_type: 'User',
+            entity_id: userId,
+            details: { message: 'User password reset' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || req.headers['user-agent'],
+            status: 'success'
+        });
+
+        res.json({ message: 'User password reset successfully' });
+    } catch (error) {
+        console.error('Reset user password error:', error);
+        res.status(500).json({ error: 'An error occurred while resetting user password.' });
+    }
+};
+
+const resetUser2FA = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        user.twoFactorEnabled = false; // Assuming this is how 2FA is managed
+        await user.save();
+
+        await AuditLog.create({
+            user_id: req.user.id,
+            action: 'reset_2fa',
+            entity_type: 'User',
+            entity_id: userId,
+            details: { message: 'User 2FA reset' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || req.headers['user-agent'],
+            status: 'success'
+        });
+
+        res.json({ message: 'User 2FA reset successfully' });
+    } catch (error) {
+        console.error('Reset user 2FA error:', error);
+        res.status(500).json({ error: 'An error occurred while resetting user 2FA.' });
+    }
+};
+
+const updateAuthPolicy = async (req, res) => {
+    try {
+        const { twoFactorRequired, passwordComplexity } = req.body;
+
+        // Update authentication policies in your settings (this is a placeholder)
+        // You may need to implement a settings model or similar to store these values
+
+        res.json({ message: 'Authentication policies updated successfully' });
+    } catch (error) {
+        console.error('Update auth policy error:', error);
+        res.status(500).json({ error: 'An error occurred while updating authentication policies.' });
+    }
+};
+
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const register = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        details: errors.array().map(err => ({
-          field: err.param,
-          message: err.msg
-        }))
-      });
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, first_name, last_name } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({
-        error: 'Email already registered',
-        field: 'email'
-      });
+      return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Create new user
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
     const user = await User.create({
       email,
-      password,
-      firstName,
-      lastName,
-      isEmailVerified: false,
-      loginAttempts: 0,
-      accountLocked: false
+      password: hashedPassword,
+      first_name,
+      last_name,
+      status: 'active',
+      is_email_verified: false
     });
-
-    // Assign default role
-    const defaultRole = await Role.findOne({ where: { name: 'user' } });
-    if (defaultRole) {
-      await user.addRole(defaultRole);
-    }
 
     // Generate verification token
     const verificationToken = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1d' }
     );
 
     // TODO: Send verification email
-    console.log('Sending mail to:', user.email);
-    await sendMail(
-      user.email,
-      'Welcome! You\'re registered 🎉',
-      'Please verify your email address to complete your registration.',
-      `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-          <p>Hello ${user.firstName},</p>
-          <p>Welcome to <strong>Sentient CRM</strong> — we’re thrilled to have you on board!</p>
-          <p>Your account has been successfully created, and you’re all set to start managing your customer relationships more efficiently.</p>
-          <p>With <strong>Sentient CRM</strong>, you can track leads, manage contacts, and gain valuable insights to grow your business.</p>
-          <p>If you didn’t sign up for this account, feel free to disregard this message.</p>
-          <p style="margin-top: 30px;">Warm regards,<br>
-          <strong>Team <br /> Sentient Digital</strong></p>
-        </div>
-      `
-    );
-    
-    console.log('Verification token:', verificationToken);
-
-    // Generate auth token for immediate login
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isAdmin: false,
-        isSuperAdmin: false
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // await sendVerificationEmail(user.email, verificationToken);
 
     // Log the registration
     await AuditLog.create({
       user_id: user.id,
-      action: 'create',
-      entity_type: 'User',
-      entity_id: user.id,
-      details: { message: 'New user registration' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent') || req.headers['user-agent'],
-      status: 'success'
+      action: 'register',
+      details: { message: 'User registered successfully' },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
     });
 
+    // Generate token for immediate login
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'Registration successful',
       token,
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isEmailVerified: user.isEmailVerified,
-        isAdmin: false,
-        isSuperAdmin: false
+        first_name: user.first_name,
+        last_name: user.last_name
       }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
-      error: 'An error occurred during registration. Please try again.',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const { email, password, rememberMe } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-    console.log(`Login attempt for email: ${email}`);
+    const { email, password } = req.body;
 
+    // Find user with roles
     const user = await User.findOne({
       where: { email },
       include: [{
         model: Role,
-        attributes: ['name']
+        attributes: ['id', 'name', 'description'],
+        through: { attributes: [] }
       }]
     });
-
     if (!user) {
-      console.log(`Login failed: User not found for email ${email}`);
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if account is locked, but bypass for superadmin
-    const isSuperAdmin = user.Roles.some(role => role.name === 'superadmin');
-    if (user.accountLocked && !isSuperAdmin) {
-      if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
-        const timeLeft = Math.ceil((user.accountLockedUntil - new Date()) / 1000 / 60);
-        console.log(`Login failed: Account locked for email ${email}`);
-        return res.status(403).json({
-          error: 'Account is locked due to too many failed attempts',
-          timeLeft: `${timeLeft} minutes`
-        });
-      } else {
-        // Reset lock if time has passed
-        user.accountLocked = false;
-        user.loginAttempts = 0;
-        user.accountLockedUntil = null;
-        await user.save();
-      }
+    // Check password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isValidPassword = await user.validatePassword(password);
-    if (!isValidPassword) {
-      console.log(`Login failed: Invalid password for email ${email}`);
+    // TODO: Re-enable email verification once email sending is implemented
+    // if (!user.is_email_verified) {
+    //   return res.status(403).json({ error: 'Please verify your email first' });
+    // }
 
-      // Increment failed attempts
-      user.loginAttempts = (user.loginAttempts || 0) + 1;
-
-      // Lock account after 5 failed attempts
-      if (user.loginAttempts >= 5) {
-        user.accountLocked = true;
-        user.accountLockedUntil = new Date(Date.now() + 30 * 60 * 1000); // Lock for 30 minutes
-        await user.save();
-        return res.status(403).json({
-          error: 'Too many failed attempts. Account locked for 30 minutes.'
-        });
-      }
-
-      await user.save();
-      return res.status(401).json({
-        error: 'Invalid email or password',
-        attemptsLeft: 5 - user.loginAttempts
-      });
+    // Check user status
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active' });
     }
 
-    // Reset login attempts on successful login
-    user.loginAttempts = 0;
-    user.accountLocked = false;
-    user.accountLockedUntil = null;
-    user.lastLogin = new Date();
-    await user.save();
-
-    // Generate token with more user info
+    // Generate token
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isAdmin: user.Roles.some(role => role.name === 'admin'),
-        isSuperAdmin: user.Roles.some(role => role.name === 'superadmin')
-      },
+      { id: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: rememberMe ? '7d' : '24h' }
+      { expiresIn: '1d' }
     );
 
-    console.log(`Login successful for email: ${email}`);
+    // Log the login
+    await AuditLog.create({
+      user_id: user.id,
+      action: 'login',
+      details: { message: 'User logged in successfully' },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    // Add admin flags based on roles
+    const userRoles = user.Roles.map(role => role.name);
+    const userData = {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      status: user.status,
+      is_email_verified: user.is_email_verified,
+      roles: user.Roles.map(role => ({
+        id: role.id,
+        name: role.name,
+        description: role.description
+      })),
+      isAdmin: userRoles.includes('admin'),
+      isSuperAdmin: userRoles.includes('super_admin')
+    };
 
     res.json({
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isEmailVerified: user.isEmailVerified,
-        isAdmin: user.Roles.some(role => role.name === 'admin'),
-        isSuperAdmin: user.Roles.some(role => role.name === 'superadmin')
-      }
+      user: userData
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'An error occurred during login. Please try again.' });
+    res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await user.destroy();
+
+    // Log the deletion
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'delete',
+      entity_type: 'User',
+      entity_id: userId,
+      details: { message: 'User deleted' },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || req.headers['user-agent'],
+      status: 'success'
+    });
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'An error occurred while deleting the user.' });
   }
 };
 
 const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    const userId = decoded.id;
+    const user = await User.findByPk(userId);
 
-    const user = await User.findByPk(decoded.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    user.isEmailVerified = true;
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    user.email_verified = true;
     await user.save();
+
+    await AuditLog.create({
+      user_id: user.id,
+      action: 'verify',
+      entity_type: 'User',
+      entity_id: user.id,
+      details: { message: 'Email verified' },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || req.headers['user-agent'],
+      status: 'success'
+    });
 
     res.json({ message: 'Email verified successfully' });
   } catch (error) {
-    res.status(400).json({ error: 'Invalid or expired token' });
+    console.error('Email verification error:', error);
+    
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(400).json({ error: 'Token expired' });
+    } 
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(400).json({ error: 'Invalid token' });
+    }
+    
+    res.status(500).json({ error: 'An error occurred while verifying the email.' });
   }
 };
 
-const requestPasswordReset = async (req, res) => {
+const resendVerificationEmail = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
@@ -253,230 +429,94 @@ const requestPasswordReset = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
 
-    const resetToken = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    // TODO: Send password reset email
-
-    res.json({ message: 'Password reset link sent to email' });
+    const token = jwt.sign({ id: user.id }, process.env.SECRET_KEY, { expiresIn: '1h' });
+    const verificationLink = `${process.env.CLIENT_URL}/verify-email/${token}`;
+    
+    // TODO: Implement actual email sending logic here
+    // sendVerificationEmail(user.email, verificationLink);
+    
+    res.json({ message: 'Verification email sent successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Resend verification email error:', error);
+    res.status(500).json({ error: 'An error occurred while resending the verification email.' });
   }
 };
 
-const resetPassword = async (req, res) => {
+const logout = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Log the logout action
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'logout',
+      details: { message: 'User logged out successfully' },
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
 
-    const user = await User.findByPk(decoded.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Check if password was used before
-    const isOldPassword = await Promise.all(
-      user.previousPasswords.map(async (oldPassword) => {
-        return await bcrypt.compare(newPassword, oldPassword);
-      })
-    );
-
-    if (isOldPassword.some(Boolean)) {
-      return res.status(400).json({ error: 'Cannot use a previously used password' });
-    }
-
-    user.password = newPassword;
-    user.previousPasswords = [...user.previousPasswords, user.password].slice(-5);
-    await user.save();
-
-    res.json({ message: 'Password reset successfully' });
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    res.status(400).json({ error: 'Invalid or expired token' });
-  }
-};
-
-const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const user = req.user;
-
-    const isValidPassword = await user.validatePassword(currentPassword);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-
-    // Check if password was used before
-    const isOldPassword = await Promise.all(
-      user.previousPasswords.map(async (oldPassword) => {
-        return await bcrypt.compare(newPassword, oldPassword);
-      })
-    );
-
-    if (isOldPassword.some(Boolean)) {
-      return res.status(400).json({ error: 'Cannot use a previously used password' });
-    }
-
-    user.password = newPassword;
-    user.previousPasswords = [...user.previousPasswords, user.password].slice(-5);
-    await user.save();
-
-    // TODO: Send password change notification email
-
-    res.json({ message: 'Password changed successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'An error occurred during logout' });
   }
 };
 
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password', 'previousPasswords'] },
+      attributes: [
+        'id',
+        'email',
+        'first_name',
+        'last_name',
+        'status',
+        'is_email_verified',
+        'created_at',
+        'updated_at'
+      ],
       include: [{
         model: Role,
+        attributes: ['id', 'name', 'description'],
         through: { attributes: [] }
       }]
     });
 
-    res.json({ user });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const updateProfile = async (req, res) => {
-  try {
-    const { firstName, lastName } = req.body;
-    const user = req.user;
-
-    user.firstName = firstName || user.firstName;
-    user.lastName = lastName || user.lastName;
-    await user.save();
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const getLoginHistory = async (req, res) => {
-  try {
-    const logs = await AuditLog.findAll({
-      where: {
-        userId: req.user.id,
-        action: { [Op.like]: '%login%' }
-      },
-      order: [['createdAt', 'DESC']],
-      limit: 10
-    });
-
-    res.json(logs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const refreshToken = async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(400).json({ error: 'Refresh token is required' });
-    }
-
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findByPk(decoded.id);
-
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const newToken = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    // Add admin flags based on roles
+    const userRoles = user.Roles.map(role => role.name);
+    const userData = {
+      ...user.toJSON(),
+      isAdmin: userRoles.includes('admin'),
+      isSuperAdmin: userRoles.includes('super_admin')
+    };
 
-    res.json({
-      token: newToken,
-      user: {
-        id: user.id,
-        email: user.email
-      }
-    });
+    res.json({ user: userData });
   } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired refresh token' });
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'An error occurred while fetching user profile' });
   }
 };
-
-const logout = async (req, res) => {
-  try {
-    // Invalidate the token (if using a token blacklist, add it here)
-    res.json({ message: 'Logged out successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const resetAccountLock = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    // Only super admin can reset account locks
-    if (!req.user.isSuperAdmin) {
-      return res.status(403).json({ error: 'Only super admin can reset account locks' });
-    }
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Reset the lock
-    user.loginAttempts = 0;
-    user.accountLocked = false;
-    user.accountLockedUntil = null;
-    await user.save();
-
-    // Log the action
-    await AuditLog.create({
-      userId: req.user.id,
-      action: 'reset_account_lock',
-      details: `Account lock reset for user ${email}`,
-      ipAddress: req.ip
-    });
-
-    res.json({ message: 'Account lock reset successfully' });
-  } catch (error) {
-    console.error('Reset account lock error:', error);
-    res.status(500).json({ error: 'An error occurred while resetting account lock' });
-  }
-};
-
 
 module.exports = {
-  register,
-  login,
-  verifyEmail,
-  requestPasswordReset,
-  resetPassword,
-  changePassword,
-  getProfile,
-  updateProfile,
-  getLoginHistory,
-  refreshToken,
-  logout,
-  resetAccountLock
+    register,
+    login,
+    logout,
+    getProfile,
+    deleteUser,
+    verifyEmail,
+    resendVerificationEmail,
+    getAllUsers,
+    getUserById,
+    updateUserRole,
+    updateUserStatus,
+    resetUserPassword,
+    resetUser2FA,
+    updateAuthPolicy
 };

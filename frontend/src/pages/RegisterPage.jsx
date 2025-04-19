@@ -6,11 +6,11 @@ import { FaGoogle, FaFacebook, FaXTwitter } from 'react-icons/fa6';
 import { FaEyeSlash, FaRegEye } from "react-icons/fa";
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirm_password: ''
   });
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -85,16 +85,16 @@ export default function RegisterPage() {
     setLoading(true);
 
     // Client-side validation
-    if (formData.password !== formData.confirmPassword) {
-      setFieldErrors({ confirmPassword: 'Passwords do not match' });
+    if (formData.password !== formData.confirm_password) {
+      setFieldErrors({ confirm_password: 'Passwords do not match' });
       setLoading(false);
       return;
     }
 
     try {
       await register({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         email: formData.email,
         password: formData.password
       });
@@ -132,6 +132,7 @@ export default function RegisterPage() {
     }
   };
   return (
+<<<<<<< HEAD
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
       <div className="auth-card">
         <h2 className="auth-title">Register</h2>
@@ -306,6 +307,86 @@ export default function RegisterPage() {
             Already have an account?{' '}
             <Link to="/login" className="auth-link">Login</Link>
           </p>
+=======
+    <div className="auth-container">
+      <h2>Register</h2>
+      {error && <div className="error-message">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>First Name</label>
+          <input
+            type="text"
+            name="first_name"
+            value={formData.first_name}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+          {fieldErrors.first_name && <div className="error-message">{fieldErrors.first_name}</div>}
+        </div>
+        <div className="form-group">
+          <label>Last Name</label>
+          <input
+            type="text"
+            name="last_name"
+            value={formData.last_name}
+            onChange={handleChange}
+            required
+            disabled={loading}
+          />
+          {fieldErrors.last_name && <div className="error-message">{fieldErrors.last_name}</div>}
+        </div>
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            autoComplete="username"
+          />
+          {fieldErrors.email && <div className="error-message">{fieldErrors.email}</div>}
+        </div>
+        <div className="form-group password-group">
+          <label>Password</label>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            style={{ backgroundColor: 'transparent', color: 'inherit' }}
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={toggleShowPassword}
+            className="show-password-btn"
+            tabIndex={-1}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+          {fieldErrors.password && <div className="error-message">{fieldErrors.password}</div>}
+          <span className="password-hint">
+            Password must contain at least 12 characters, one uppercase letter, one lowercase letter, one number and one special character
+          </span>
+        </div>
+        <div className="form-group">
+          <label>Confirm Password</label>
+          <input
+            type="password"
+            name="confirm_password"
+            value={formData.confirm_password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            autoComplete="new-password"
+          />
+          {fieldErrors.confirm_password && <div className="error-message">{fieldErrors.confirm_password}</div>}
+>>>>>>> 89b7fcc (fix admin panel)
         </div>
       </div>
     </div>

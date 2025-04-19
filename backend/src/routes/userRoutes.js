@@ -27,8 +27,8 @@ const passwordRules = [
 const validateRegister = [
   body('email').isEmail().withMessage('Please provide a valid email'),
   ...passwordRules,
-  body('firstName').trim().notEmpty().withMessage('First name is required'),
-  body('lastName').trim().notEmpty().withMessage('Last name is required')
+  body('first_name').trim().notEmpty().withMessage('First name is required'),
+  body('last_name').trim().notEmpty().withMessage('Last name is required')
 ];
 
 const validateLogin = [
@@ -36,45 +36,18 @@ const validateLogin = [
   body('password').notEmpty().withMessage('Password is required')
 ];
 
-const validatePasswordReset = [
-  body('email').isEmail().withMessage('Please provide a valid email')
-];
-
-const validateChangePassword = [
-  body('currentPassword').notEmpty().withMessage('Current password is required'),
-  ...passwordRules.map(rule => rule.withMessage('New password requirements: ' + rule.message))
-];
-
-const validateResetPassword = [
-  body('token').notEmpty().withMessage('Token is required'),
-  ...passwordRules
-];
-
-const validateToken = [
-  param('token')
-    .isJWT()
-    .withMessage('Invalid token format')
-];
-
-// Public routes
-router.post('/register', validateRegister, userController.register);
-router.post('/login', authLimiter, validateLogin, userController.login);
-router.get('/verify-email/:token', validateToken, userController.verifyEmail);
-router.post('/request-password-reset', authLimiter, validatePasswordReset, userController.requestPasswordReset);
-router.post('/reset-password', validateResetPassword, userController.resetPassword);
-router.post('/refresh-token', userController.refreshToken);
-
-// Logout endpoint
+// Auth routes
+router.post('/register', validateRegister, authLimiter, userController.register);
+router.post('/login', validateLogin, authLimiter, userController.login);
 router.post('/logout', auth, userController.logout);
 
-// Protected routes
-router.get('/profile', auth, userController.getProfile);
-router.put('/profile', auth, userController.updateProfile);
-router.post('/change-password', auth, validateChangePassword, userController.changePassword);
-router.get('/login-history', auth, userController.getLoginHistory);
+// Email verification routes
+router.get('/verify-email/:token', userController.verifyEmail);
+router.post('/resend-verification', userController.resendVerificationEmail);
 
-// Admin routes
-router.post('/reset-account-lock', auth, userController.resetAccountLock);
+// User management routes
+router.get('/profile', auth, userController.getProfile);
+router.delete('/:id', auth, userController.deleteUser);
 
 
 // Social media Login Routes 

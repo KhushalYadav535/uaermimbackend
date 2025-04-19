@@ -62,34 +62,71 @@ app.use((err, req, res, next) => {
 const createSuperAdmin = async () => {
   try {
     // Create or find the super admin role
+    // Create super_admin role
     const [superAdminRole] = await Role.findOrCreate({
       where: { name: 'super_admin' },
       defaults: {
         description: 'Super Admin with all permissions',
-        isSystemRole: true
+        isSystemRole: true,
+        level: 100
       }
     });
 
-    // Create or find the developer user
+    // Create admin role
+    const [adminRole] = await Role.findOrCreate({
+      where: { name: 'admin' },
+      defaults: {
+        description: 'Admin with management permissions',
+        isSystemRole: true,
+        level: 50
+      }
+    });
+
+    // Create user role
+    const [userRole] = await Role.findOrCreate({
+      where: { name: 'user' },
+      defaults: {
+        description: 'Regular user with basic permissions',
+        isSystemRole: true,
+        level: 1
+      }
+    });
+
+    // Create or find the super admin user
     const devEmail = process.env.DEV_EMAIL || 'superadmin@example.com';
     const devPassword = process.env.DEV_PASSWORD || 'SuperAdmin123!';
     const [developer] = await User.findOrCreate({
       where: { email: devEmail },
       defaults: {
-        firstName: 'Developer',
-        lastName: 'User',
-        password: devPassword
+        first_name: 'Super',
+        last_name: 'Admin',
+        password: devPassword,
+        status: 'active',
+        is_email_verified: true
       }
     });
 
-    // Assign the super admin role to the developer
-    await developer.addRole(superAdminRole);
+    // Create or find the admin user
+    const [admin] = await User.findOrCreate({
+      where: { email: 'admin@example.com' },
+      defaults: {
+        first_name: 'System',
+        last_name: 'Admin',
+        password: 'Admin123!',
+        status: 'active',
+        is_email_verified: true
+      }
+    });
+
+    // Assign roles
+    await developer.setRoles([superAdminRole]);
+    await admin.setRoles([adminRole]);
 
     // Reset account lock for super admin to ensure no lockout
     await developer.update({
-      loginAttempts: 0,
-      accountLocked: false,
-      accountLockedUntil: null
+      login_attempts: 0,
+      account_locked: false,
+      account_locked_until: null
     });
 
     console.log('Super admin setup completed.');

@@ -3,43 +3,36 @@ const sequelize = require('../config/database');
 
 const AuditLog = sequelize.define('AuditLog', {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
     primaryKey: true
   },
   user_id: {
-    type: DataTypes.UUID,
+    type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'user_id',
     references: {
       model: 'users',
       key: 'id'
-    }
+    },
+    field: 'user_id'
   },
   action: {
-    type: DataTypes.ENUM('create', 'update', 'delete', 'login', 'logout', 'password_change'),
-    allowNull: false
-  },
-  entity_type: {
     type: DataTypes.STRING,
-    allowNull: false,
-    field: 'entity_type'
-  },
-  entity_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    field: 'entity_id'
+    allowNull: false
   },
   details: {
-    type: DataTypes.JSONB
+    type: DataTypes.JSONB,
+    defaultValue: {}
   },
-  ipAddress: {
+  ip_address: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'ip_address'
   },
-  userAgent: {
+  user_agent: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'user_agent'
   },
   status: {
     type: DataTypes.ENUM('success', 'failure'),
@@ -48,14 +41,11 @@ const AuditLog = sequelize.define('AuditLog', {
   }
 }, {
   timestamps: true,
+  underscored: true,
   indexes: [
     {
       name: 'audit_logs_user_created_at_idx',
       fields: ['user_id', 'created_at']
-    },
-    {
-      name: 'audit_logs_entity_idx',
-      fields: ['entity_type', 'entity_id']
     },
     {
       name: 'audit_logs_action_idx',

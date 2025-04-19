@@ -3,6 +3,7 @@ const { User, Role } = require('../models');
 
 const auth = async (req, res, next) => {
   try {
+    console.log('Auth middleware executed');
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
@@ -33,7 +34,7 @@ const auth = async (req, res, next) => {
 
     const userRoles = user.Roles.map(role => role.name);
     user.isAdmin = userRoles.includes('admin');
-    user.isSuperAdmin = userRoles.includes('superadmin');
+    user.isSuperAdmin = userRoles.includes('super_admin');
 
     req.user = user;
     req.token = token;
@@ -49,21 +50,33 @@ const auth = async (req, res, next) => {
   }
 };
 
+const isAdmin = async (req, res, next) => {
+  try {
+    const userRoles = req.user.Roles.map(role => role.name);
+    if (!userRoles.includes('admin') && !userRoles.includes('super_admin')) {
+      return res.status(403).json({ error: 'Access denied: admin privileges required' });
+    }
+    next();
+  } catch (error) {
+    console.error('Admin check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 const checkRole = (roles) => {
   return async (req, res, next) => {
     try {
-      const user = req.user;
-      const userRoles = await user.getRoles();
-      const hasRole = userRoles.some(role => roles.includes(role.name));
+      const userRoles = req.user.Roles.map(role => role.name);
+      const hasRole = roles.some(role => userRoles.includes(role));
 
       if (!hasRole) {
-        throw new Error('Access denied. Insufficient permissions.');
+        return res.status(403).json({ error: 'Access denied: insufficient role' });
       }
 
       next();
     } catch (error) {
       console.error('Role check error:', error);
-      res.status(403).json({ error: error.message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   };
 };
@@ -71,30 +84,36 @@ const checkRole = (roles) => {
 const checkPermission = (permissions) => {
   return async (req, res, next) => {
     try {
-      const user = req.user;
-      const userRoles = await user.getRoles();
-      const userPermissions = new Set();
-      
-      for (const role of userRoles) {
-        const rolePermissions = await role.getPermissions();
-        rolePermissions.forEach(permission => userPermissions.add(permission.name));
-      }
+      const userPermissions = await Permission.findAll({
+        include: [{
+          model: Role,
+          required: true,
+          include: [{
+            model: User,
+            required: true,
+            where: { id: req.user.id }
+          }]
+        }]
+      });
 
-      const hasPermission = permissions.every(permission => userPermissions.has(permission));
+      const userPermissionNames = userPermissions.map(p => p.name);
+      const hasPermission = permissions.some(p => userPermissionNames.includes(p));
+
       if (!hasPermission) {
-        throw new Error('Access denied. Insufficient permissions.');
+        return res.status(403).json({ error: 'Access denied: insufficient permissions' });
       }
 
       next();
     } catch (error) {
       console.error('Permission check error:', error);
-      res.status(403).json({ error: error.message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   };
 };
 
 module.exports = {
   auth,
+  isAdmin,
   checkRole,
   checkPermission
 };

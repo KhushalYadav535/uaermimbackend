@@ -558,6 +558,7 @@ body {
   font-size: 0.875rem;
 }
 
+<<<<<<< HEAD
 /*  Password categories */
 .password-strength.weak {
   color: #dc2626;
@@ -577,3 +578,172 @@ body {
 .text-red {
   color: #b00e3f;
 }
+=======
+/* Admin Filters */
+.admin-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.filter-select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  min-width: 150px;
+}
+
+.date-filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.date-input {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #3498db;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.9rem;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Table Improvements */
+.admin-table td select {
+  padding: 0.25rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+/* Security Settings */
+.settings-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.settings-section h2 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  font-size: 1.25rem;
+}
+
+.setting-item {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.setting-item label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #2c3e50;
+  cursor: pointer;
+}
+
+.setting-description {
+  margin: 0.5rem 0 0 1.75rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  background: #2ecc71;
+  color: white;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+/* User Activity */
+.activity-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.activity-section h2 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  font-size: 1.25rem;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.export-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #27ae60;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #219a52;
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-table .success {
+  color: #27ae60;
+}
+
+.admin-table .failure {
+  color: #e74c3c;
+}
+>>>>>>> 89b7fcc (fix admin panel)

@@ -29,54 +29,64 @@ const User = sequelize.define('User', {
       }
     }
   },
-  firstName: {
+  first_name: {
     type: DataTypes.STRING(100),
     allowNull: false,
     validate: {
       notEmpty: true
-    }
+    },
+    field: 'first_name'
   },
-  lastName: {
+  last_name: {
     type: DataTypes.STRING(100),
     allowNull: false,
     validate: {
       notEmpty: true
-    }
+    },
+    field: 'last_name'
   },
-  isEmailVerified: {
+  is_email_verified: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false
+    defaultValue: false,
+    field: 'is_email_verified'
   },
-  lastLogin: {
-    type: DataTypes.DATE
+  last_login: {
+    type: DataTypes.DATE,
+    field: 'last_login'
   },
-  loginAttempts: {
+  login_attempts: {
     type: DataTypes.INTEGER,
-    defaultValue: 0
+    defaultValue: 0,
+    field: 'login_attempts'
   },
-  accountLocked: {
+  account_locked: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false
+    defaultValue: false,
+    field: 'account_locked'
   },
-  accountLockedUntil: {
-    type: DataTypes.DATE
+  account_locked_until: {
+    type: DataTypes.DATE,
+    field: 'account_locked_until'
   },
-  twoFactorEnabled: {
+  two_factor_enabled: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false
+    defaultValue: false,
+    field: 'two_factor_enabled'
   },
-  twoFactorSecret: {
-    type: DataTypes.STRING(255)
+  two_factor_secret: {
+    type: DataTypes.STRING(255),
+    field: 'two_factor_secret'
   },
-  previousPasswords: {
+  previous_passwords: {
     type: DataTypes.TEXT,
     defaultValue: '[]',
+    field: 'previous_passwords',
     get() {
-      const rawValue = this.getDataValue('previousPasswords');
+      const rawValue = this.getDataValue('previous_passwords');
       return rawValue ? JSON.parse(rawValue) : [];
     },
     set(value) {
-      this.setDataValue('previousPasswords', JSON.stringify(value || []));
+      this.setDataValue('previous_passwords', JSON.stringify(value || []));
     }
   },
   passwordChangedAt: {
