@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { FaGoogle, FaFacebook, FaXTwitter } from 'react-icons/fa6';
 import { FaEyeSlash, FaRegEye } from "react-icons/fa";
+
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     first_name: '',
@@ -50,7 +51,7 @@ export default function RegisterPage() {
     }
 
     // check password match for confirmation field 
-    if (name === 'confirmPassword') {
+    if (name === 'confirm_password') {
       if (value !== formData.password) {
         setPasswordMatchError("Passwords do not match")
       } else {
@@ -131,8 +132,8 @@ export default function RegisterPage() {
       setError('Social login failed. Please try again.');
     }
   };
+
   return (
-<<<<<<< HEAD
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
       <div className="auth-card">
         <h2 className="auth-title">Register</h2>
@@ -146,36 +147,36 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="auth-form">
           {/* First name field  */}
           <div className="form-group">
-            <label htmlFor="firstName">First Name</label>
+            <label htmlFor="first_name">First Name</label>
             <input
-              id="firstName"
+              id="first_name"
               type="text"
-              name="firstName"
-              value={formData.firstName}
+              name="first_name"
+              value={formData.first_name}
               onChange={handleChange}
               required
               disabled={loading}
               placeholder="Enter your first name"
             />
-            {fieldErrors.firstName && (
-              <div className="error-message">{fieldErrors.firstName}</div>
+            {fieldErrors.first_name && (
+              <div className="error-message">{fieldErrors.first_name}</div>
             )}
           </div>
           {/*  Last name field */}
           <div className="form-group">
-            <label htmlFor="lastName">Last Name</label>
+            <label htmlFor="last_name">Last Name</label>
             <input
-              id="lastName"
+              id="last_name"
               type="text"
-              name="lastName"
-              value={formData.lastName}
+              name="last_name"
+              value={formData.last_name}
               onChange={handleChange}
               required
               disabled={loading}
               placeholder="Enter your last name"
             />
-            {fieldErrors.lastName && (
-              <div className="error-message">{fieldErrors.lastName}</div>
+            {fieldErrors.last_name && (
+              <div className="error-message">{fieldErrors.last_name}</div>
             )}
           </div>
           {/* Email input field */}
@@ -240,16 +241,16 @@ export default function RegisterPage() {
                 Suggestions: {passwordSuggestion}
               </div>
             )}
-
           </div>
-          {/* password confirmation fields  */}
+
+          {/* Confirm password field */}
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
+            <label htmlFor="confirm_password">Confirm Password</label>
             <input
-              id="confirmPassword"
+              id="confirm_password"
               type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
+              name="confirm_password"
+              value={formData.confirm_password}
               onChange={handleChange}
               required
               disabled={loading}
@@ -260,11 +261,13 @@ export default function RegisterPage() {
               <div className="error-message">{passwordMatchError}</div>
             )}
           </div>
+
           {/* Social media registration */}
           <div className="social-login mt-6">
             <p className="text-center text-sm text-gray-500 mb-3">or sign up with</p>
             <div className="flex justify-center gap-4">
               <button
+                type="button"
                 onClick={() => handleSocialLogin(signInWithGoogle)}
                 className="p-3 bg-white border rounded-full shadow hover:bg-gray-100 transition"
                 aria-label="Register with Google"
@@ -274,6 +277,7 @@ export default function RegisterPage() {
               </button>
 
               <button
+                type="button"
                 onClick={() => handleSocialLogin(signInWithFacebook)}
                 className="p-3 bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
                 aria-label="Register with Facebook"
@@ -283,6 +287,7 @@ export default function RegisterPage() {
               </button>
 
               <button
+                type="button"
                 onClick={() => handleSocialLogin(signInWithTwitter)}
                 className="p-3 bg-black text-white rounded-full shadow hover:bg-gray-900 transition"
                 aria-label="Register with Twitter/X"
@@ -292,7 +297,8 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
-          {/*  Submit button  */}
+
+          {/* Submit button */}
           <button
             type="submit"
             disabled={loading}
@@ -307,86 +313,6 @@ export default function RegisterPage() {
             Already have an account?{' '}
             <Link to="/login" className="auth-link">Login</Link>
           </p>
-=======
-    <div className="auth-container">
-      <h2>Register</h2>
-      {error && <div className="error-message">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>First Name</label>
-          <input
-            type="text"
-            name="first_name"
-            value={formData.first_name}
-            onChange={handleChange}
-            required
-            disabled={loading}
-          />
-          {fieldErrors.first_name && <div className="error-message">{fieldErrors.first_name}</div>}
-        </div>
-        <div className="form-group">
-          <label>Last Name</label>
-          <input
-            type="text"
-            name="last_name"
-            value={formData.last_name}
-            onChange={handleChange}
-            required
-            disabled={loading}
-          />
-          {fieldErrors.last_name && <div className="error-message">{fieldErrors.last_name}</div>}
-        </div>
-        <div className="form-group">
-          <label>Email</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            autoComplete="username"
-          />
-          {fieldErrors.email && <div className="error-message">{fieldErrors.email}</div>}
-        </div>
-        <div className="form-group password-group">
-          <label>Password</label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            style={{ backgroundColor: 'transparent', color: 'inherit' }}
-            autoComplete="new-password"
-          />
-          <button
-            type="button"
-            onClick={toggleShowPassword}
-            className="show-password-btn"
-            tabIndex={-1}
-          >
-            {showPassword ? 'Hide' : 'Show'}
-          </button>
-          {fieldErrors.password && <div className="error-message">{fieldErrors.password}</div>}
-          <span className="password-hint">
-            Password must contain at least 12 characters, one uppercase letter, one lowercase letter, one number and one special character
-          </span>
-        </div>
-        <div className="form-group">
-          <label>Confirm Password</label>
-          <input
-            type="password"
-            name="confirm_password"
-            value={formData.confirm_password}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            autoComplete="new-password"
-          />
-          {fieldErrors.confirm_password && <div className="error-message">{fieldErrors.confirm_password}</div>}
->>>>>>> 89b7fcc (fix admin panel)
         </div>
       </div>
     </div>
