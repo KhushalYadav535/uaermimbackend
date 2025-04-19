@@ -35,23 +35,6 @@ api.interceptors.response.use(function (response) {
 const apiService = {
   // Auth endpoints
   login: function (credentials) {
-    return api.post('/login', credentials);
-  },
-  register: function (userData) {
-    return api.post('/register', userData);
-  },
-  logout: function () {
-    return api.post('/logout');
-  },
-  getProfile: function () {
-    return api.get('/profile');
-  },
-  resetAccountLock: function (email) {
-    return api.post('/reset-account-lock', { email: email });
-  },
-
-  // Auth endpoints
-  login: function (credentials) {
     return api.post('/users/login', credentials);
   },
   register: function (userData) {
