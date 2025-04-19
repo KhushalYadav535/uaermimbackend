@@ -27,20 +27,13 @@ function App() {
           <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
-<<<<<<< HEAD
-          <Route path="/admin/users" element={<PrivateRoute><UserManagementPage /></PrivateRoute>} />
-          <Route path="/admin/roles" element={<PrivateRoute><RoleManagementPage /></PrivateRoute>} />
-          <Route path="/admin/audit-logs" element={<PrivateRoute><AuditLogPage /></PrivateRoute>} />
-          {/* Super admin */}
-          <Route path='/superAdmin' element={<SuperAdminDashboard />} />
-=======
-          
           {/* Admin routes */}
           <Route path="/admin/users" element={<AdminRoute><UsersManagement /></AdminRoute>} />
           <Route path="/admin/roles" element={<AdminRoute><RolesManagement /></AdminRoute>} />
           <Route path="/admin/logs" element={<AdminRoute><LogsManagement /></AdminRoute>} />
           <Route path="/admin/settings" element={<AdminRoute><SystemSettings /></AdminRoute>} />
->>>>>>> 89b7fcc (fix admin panel)
+          {/* Super admin */}
+          <Route path='/superAdmin' element={<AdminRoute><SuperAdminDashboard /></AdminRoute>} />
         </Routes>
       </AuthProvider>
     </Router>
