@@ -4,10 +4,13 @@ import api from '../services/api';
 
 const AuthContext = createContext();
 
+const DEV_EMAIL = 'superadmin@example.com'; // Should match backend temp-config.js
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,6 +19,7 @@ export function AuthProvider({ children }) {
       fetchUser();
     } else {
       setLoading(false);
+      setIsAuthenticated(false);
     }
   }, [token]);
 
@@ -23,21 +27,25 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.getProfile();
       if (data.user) {
-        // Add isSuperAdmin flag from backend user data
-        data.user.isSuperAdmin = data.user.isSuperAdmin || false;
         setUser(data.user);
-        // Redirect to dashboard if on login/register page
+        setIsAuthenticated(true);
+        
+        // Only redirect if on login/register pages
         if (['/login', '/register'].includes(location.pathname)) {
-          navigate('/dashboard');
+          // Redirect based on role
+          if (data.user.role === 'admin' || data.user.role === 'super_admin') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
         }
-      } else {
-        throw new Error('No user data received');
       }
-      return data;
     } catch (err) {
       console.error('Error fetching user:', err);
-      logout();
-      throw err;
+      // Only logout if it's not a 401 error from profile endpoint
+      if (!(err.response?.status === 401 && err.config?.url?.includes('/profile'))) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -45,52 +53,79 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const { data } = await api.login({ email, password });
-      if (!data.token) {
-        throw new Error('No token received from server');
-      }
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      await fetchUser();
-      navigate('/dashboard');
-      return data;
-    } catch (err) {
-      console.error('Login error:', err);
-      if (err.response?.data?.error) {
-        throw { error: err.response.data.error };
-      } else if (err.response?.data?.message) {
-        throw { error: err.response.data.message };
+      console.log('Attempting login with:', { email });
+      let response;
+      
+      // Use admin login for super admin
+      if (email === DEV_EMAIL) {
+        response = await api.adminLogin({ email, password });
       } else {
-        throw { error: 'Login failed. Please try again.' };
+        response = await api.login({ email, password });
       }
+      
+      const { data } = response;
+      console.log('Login response:', data);
+      
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        
+        // Redirect based on role
+        if (data.user.role === 'admin' || data.user.role === 'super_admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+        return data;
+      }
+      throw new Error('No token received');
+    } catch (err) {
+      console.error('Login error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      if (err.response?.data?.errors) {
+        const errorMessage = err.response.data.errors
+          .map(error => error.msg)
+          .join(', ');
+        throw new Error(errorMessage);
+      }
+      if (err.response?.data?.error) {
+        throw new Error(err.response.data.error);
+      }
+      throw err;
     }
   };
 
   const register = async (userData) => {
     try {
-      const { data } = await api.register(userData);
-      if (!data.token) {
-        throw new Error('No token received from server');
+      // Remove confirm_password before sending to API
+      const { confirm_password, ...registrationData } = userData;
+      
+      const { data } = await api.register(registrationData);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        
+        // After registration, redirect to dashboard
+        navigate('/dashboard');
+        return data;
       }
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      await fetchUser();
-      navigate('/dashboard');
-      return data;
+      throw new Error('No token received');
     } catch (err) {
       console.error('Registration error:', err);
       if (err.response?.data?.errors) {
-        // Handle validation errors from express-validator
-        const validationErrors = err.response.data.errors.reduce((acc, error) => {
-          acc[error.param] = error.msg;
-          return acc;
-        }, {});
-        throw { validationErrors };
-      } else if (err.response?.data?.error) {
-        throw { error: err.response.data.error };
-      } else {
-        throw { error: 'Registration failed. Please try again.' };
+        const errorMessage = err.response.data.errors
+          .map(error => error.msg)
+          .join(', ');
+        throw new Error(errorMessage);
       }
+      throw err;
     }
   };
 
@@ -103,6 +138,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
+      setIsAuthenticated(false);
       navigate('/login');
     }
   };
@@ -111,10 +147,10 @@ export function AuthProvider({ children }) {
     user,
     token,
     loading,
+    isAuthenticated,
     login,
     register,
     logout,
-    fetchUser
   };
 
   return (
@@ -127,3 +163,5 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+export default AuthContext;

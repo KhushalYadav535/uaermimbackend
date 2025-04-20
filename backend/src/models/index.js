@@ -1,37 +1,34 @@
-const User = require('./User');
-const Role = require('./Role');
-const Permission = require('./Permission');
-const AuditLog = require('./AuditLog');
-const Settings = require('./Settings');
-const LoginLog = require('./LoginLog');
-const ActivityLog = require('./ActivityLog');
+const fs = require('fs');
+const path = require('path');
+const Sequelize = require('sequelize');
+const sequelize = require('../config/database');
+const basename = path.basename(__filename);
 
-// User-Role many-to-many relationship
-User.belongsToMany(Role, { through: 'UserRoles' });
-Role.belongsToMany(User, { through: 'UserRoles' });
+const db = {};
 
-// Role-Permission many-to-many relationship
-Role.belongsToMany(Permission, { through: 'RolePermissions' });
-Permission.belongsToMany(Role, { through: 'RolePermissions' });
+// Import all models
+fs.readdirSync(__dirname)
+  .filter(file => {
+    return (
+      file.indexOf('.') !== 0 &&
+      file !== basename &&
+      file.slice(-3) === '.js' &&
+      file.indexOf('.test.js') === -1
+    );
+  })
+  .forEach(file => {
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    db[model.name] = model;
+  });
 
-// AuditLog-User relationship
-AuditLog.belongsTo(User, { foreignKey: 'user_id' });
-User.hasMany(AuditLog, { foreignKey: 'user_id' });
+// Set up associations
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
 
-// LoginLog-User relationship
-LoginLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(LoginLog, { foreignKey: 'userId', as: 'loginLogs' });
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
-// ActivityLog-User relationship
-ActivityLog.belongsTo(User, { foreignKey: 'userId', as: 'performer' });
-User.hasMany(ActivityLog, { foreignKey: 'userId', as: 'activityLogs' });
-
-module.exports = {
-  User,
-  Role,
-  Permission,
-  AuditLog,
-  Settings,
-  LoginLog,
-  ActivityLog
-};
+module.exports = db;

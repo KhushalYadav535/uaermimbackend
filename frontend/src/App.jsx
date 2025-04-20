@@ -1,18 +1,25 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import AdminDashboard from './pages/AdminDashboard';
 import UsersManagement from './pages/admin/UsersManagement';
 import RolesManagement from './pages/admin/RolesManagement';
 import LogsManagement from './pages/admin/LogsManagement';
 import SystemSettings from './pages/admin/SystemSettings';
 import ProfilePage from './pages/ProfilePage';
 import PasswordResetPage from './pages/PasswordResetPage';
+import AuthCallback from './pages/AuthCallback';
 import './App.css';
-import SuperAdminDashboard from './pages/superAdmin/SuperAdminDashboard';
+
+function DefaultRoute() {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return user?.role === 'admin' ? <Navigate to="/admin/dashboard" replace /> : <Navigate to="/dashboard" replace />;
+}
 
 function App() {
   return (
@@ -23,17 +30,25 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/password-reset" element={<PasswordResetPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+
           {/* Protected routes */}
-          <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+          <Route element={<PrivateRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
           {/* Admin routes */}
-          <Route path="/admin/users" element={<AdminRoute><UsersManagement /></AdminRoute>} />
-          <Route path="/admin/roles" element={<AdminRoute><RolesManagement /></AdminRoute>} />
-          <Route path="/admin/logs" element={<AdminRoute><LogsManagement /></AdminRoute>} />
-          <Route path="/admin/settings" element={<AdminRoute><SystemSettings /></AdminRoute>} />
-          {/* Super admin */}
-          <Route path='/superAdmin' element={<AdminRoute><SuperAdminDashboard /></AdminRoute>} />
+          <Route element={<AdminRoute />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<UsersManagement />} />
+            <Route path="/admin/roles" element={<RolesManagement />} />
+            <Route path="/admin/logs" element={<LogsManagement />} />
+            <Route path="/admin/settings" element={<SystemSettings />} />
+          </Route>
+
+          {/* Default route */}
+          <Route path="*" element={<DefaultRoute />} />
         </Routes>
       </AuthProvider>
     </Router>

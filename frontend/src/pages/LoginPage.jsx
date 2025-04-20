@@ -1,166 +1,106 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaX } from "react-icons/fa6";
+import SocialLogin from '../components/SocialLogin';
+import { FaGoogle, FaFacebook, FaX, FaEyeSlash, FaRegEye } from "react-icons/fa6";
+import '../styles/Auth.css';
 
-export default function LoginPage() {
+const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
   const emailRef = useRef(null);
+  const location = useLocation();
 
-  const { login, signInWithGoogle, signInWithFacebook, signInWithTwitter } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     emailRef.current?.focus();
-  }, []);
+    if (location.state?.message) {
+      setSuccess(location.state.message);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
     try {
       await login(email, password);
+      setSuccess('Login successful!');
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      const serverError =
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Login failed. Please try again.';
-      setError(serverError);
+      setError(err.response?.data?.error || 'Failed to login');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSocialLogin = async (providerFunc) => {
-    setError('');
-    setLoading(true);
-    try {
-      await providerFunc();
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Social login error:', err);
-      setError('Login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleShowPassword = () => {
-    setShowPassword((prev) => !prev);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
+    <div className="auth-container">
       <div className="auth-card">
-        <h2 className="auth-title">Welcome Back</h2>
-        <p className="auth-subtitle">Please log in to your account</p>
-
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="auth-form">
+        <h2>Login</h2>
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Email</label>
             <input
-              id="email"
               type="email"
+              id="email"
               ref={emailRef}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              autoComplete="username"
-              placeholder="Enter your email"
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <div className="password-input-wrapper">
+            <div className="password-input-container">
               <input
+                type={showPassword ? "text" : "password"}
                 id="password"
-                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
-                autoComplete="current-password"
-                placeholder="Enter your password"
               />
               <button
                 type="button"
-                onClick={toggleShowPassword}
-                className="show-password-btn"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="password-toggle"
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? <FaEyeSlash /> : <FaRegEye />}
               </button>
             </div>
           </div>
-
-          <button type="submit" disabled={loading} className="auth-button">
+          <button type="submit" className="auth-button" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        {/* // Social media  links */}
-        <div className="social-login mt-6">
-          <p className="text-center text-sm text-gray-500 mb-3">or continue with</p>
-          <div className="flex item-center gap-4">
-            <button
-              onClick={() => handleSocialLogin(signInWithGoogle)}
-              className="p-3 bg-white border rounded-full shadow hover:bg-gray-100 transition"
-              aria-label="Login with Google"
-              title="Login with Google"
-            >
-              <FaGoogle className="text-lg text-[#DB4437]" />
-            </button>
+        <SocialLogin />
 
-            <button
-              onClick={() => handleSocialLogin(signInWithFacebook)}
-              className="p-3 bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
-              aria-label="Login with Facebook"
-              title="Login with Facebook"
-            >
-              <FaFacebook className="text-lg" />
-            </button>
-
-            <button
-              onClick={() => handleSocialLogin(signInWithTwitter)}
-              className="p-3 bg-black text-white rounded-full shadow hover:bg-gray-900 transition"
-              aria-label="Login with Twitter/X"
-              title="Login with Twitter/X"
-            >
-              <FaX className="text-lg" />
-            </button>
-          </div>
-        </div>
-
-
-        <div className="auth-footer mt-4">
-          <p>
-            Don't have an account?{' '}
-            <Link to="/register" className="auth-link">Register</Link>
-          </p>
-          <p>
-            Forgot your password?{' '}
-            <Link to="/password-reset" className="auth-link">Reset Password</Link>
-          </p>
+        <div className="auth-links">
+          <Link to="/forgot-password">Forgot Password?</Link>
+          <Link to="/register">Don't have an account? Register</Link>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;

@@ -3,8 +3,8 @@ const path = require('path');
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: path.join(__dirname, '../../test-db.sqlite'),
-  logging: console.log,
+  storage: path.join(__dirname, '../../mimuser.sqlite'),
+  logging: false, // Disable logging to avoid clutter
   pool: {
     max: 5,
     min: 0,

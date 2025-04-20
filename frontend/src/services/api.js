@@ -23,124 +23,58 @@ api.interceptors.request.use(function (config) {
 api.interceptors.response.use(function (response) {
   return response;
 }, function (error) {
+  console.error('API Error:', {
+    message: error.message,
+    response: error.response?.data,
+    status: error.response?.status
+  });
+  
   if (error.response && error.response.status === 401) {
     localStorage.removeItem('token');
     window.location.href = '/login';
-  } else if (error.response && error.response.status === 403) {
-    return Promise.reject(error);
   }
   return Promise.reject(error);
 });
 
 const apiService = {
   // Auth endpoints
-  login: function (credentials) {
-    return api.post('/login', credentials);
-  },
-  register: function (userData) {
-    return api.post('/register', userData);
-  },
-  logout: function () {
-    return api.post('/logout');
-  },
-  getProfile: function () {
-    return api.get('/profile');
-  },
-  resetAccountLock: function (email) {
-    return api.post('/reset-account-lock', { email: email });
-  },
-
-  // Auth endpoints
-  login: function (credentials) {
-    return api.post('/users/login', credentials);
-  },
-  register: function (userData) {
-    return api.post('/users/register', userData);
-  },
-  logout: function () {
-    return api.post('/users/logout');
-  },
-  getProfile: function () {
-    return api.get('/users/profile');
-  },
-  resetAccountLock: function (email) {
-    return api.post('/users/reset-account-lock', { email: email });
-  },
+  login: (credentials) => api.post('/auth/login', credentials),
+  adminLogin: (credentials) => api.post('/auth/admin/login', credentials),
+  register: (userData) => api.post('/auth/register', userData),
+  logout: () => api.post('/auth/logout'),
+  getProfile: () => api.get('/auth/profile'),
+  resetAccountLock: (email) => api.post('/auth/reset-lock', { email }),
 
   // Admin endpoints
-  getUsers: function (params) {
-    return api.get('/admin/users', { params: params });
-  },
-  getUser: function (id) {
-    return api.get(`/admin/users/${id}`);
-  },
-  updateUser: function (id, userData) {
-    return api.put(`/admin/users/${id}`, userData);
-  },
-  deleteUser: function (id) {
-    return api.delete(`/admin/users/${id}`);
-  },
-  updateUserRole: function (userId, role) {
-    return api.patch(`/admin/users/${userId}/role`, { role_id: role });
-  },
-  deactivateUser: function (userId) {
-    return api.post(`/admin/users/${userId}/deactivate`);
-  },
-  resetUserPassword: function (userId) {
-    return api.post(`/admin/users/${userId}/reset-password`);
-  },
-  resetUser2FA: function (userId) {
-    return api.post(`/admin/users/${userId}/reset-2fa`);
-  },
+  getUsers: (params) => api.get('/admin/users', { params }),
+  getUser: (id) => api.get(`/admin/users/${id}`),
+  updateUser: (id, userData) => api.put(`/admin/users/${id}`, userData),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
+  deactivateUser: (userId) => api.put(`/admin/users/${userId}/deactivate`),
+  resetUserPassword: (userId) => api.post(`/admin/users/${userId}/reset-password`),
+  resetUser2FA: (userId) => api.post(`/admin/users/${userId}/reset-2fa`),
+
   // Role Management
-  getRoles: function (params) {
-    return api.get('/admin/roles', { params: params });
-  },
-  createRole: function (roleData) {
-    return api.post('/admin/roles', roleData);
-  },
-  updateRole: function (id, roleData) {
-    return api.put(`/admin/roles/${id}`, roleData);
-  },
-  deleteRole: function (id) {
-    return api.delete(`/admin/roles/${id}`);
-  },
-  getPermissions: function () {
-    return api.get('/users/permissions');
-  },
+  getRoles: (params) => api.get('/admin/roles', { params }),
+  createRole: (roleData) => api.post('/admin/roles', roleData),
+  updateRole: (id, roleData) => api.put(`/admin/roles/${id}`, roleData),
+  deleteRole: (id) => api.delete(`/admin/roles/${id}`),
+  getPermissions: () => api.get('/admin/permissions'),
+
   // System Settings
-  getSettings: function () {
-    return api.get('/admin/settings');
-  },
-  updateSettings: function (settings) {
-    return api.put('/admin/settings/auth', settings);
-  },
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (settings) => api.put('/admin/settings', settings),
 
   // Logs
-  getActivityLogs: function (params) {
-    return api.get('/admin/activity-logs', { params });
-  },
-  getLoginLogs: function (params) {
-    return api.get('/admin/login-logs', { params });
-  },
-  getAuditLogs: function (params) {
-    return api.get('/users/audit-logs', { params });
-  },
-  clearAuditLogs: function () {
-    return api.delete('/users/audit-logs');
-  },
-  getLoginHistory: function (userId, params) {
-    return api.get(`/users/users/${userId}/login-history`, { params: params });
-  },
-  getSecuritySettings: function () {
-    return api.get('/users/settings/security');
-  },
-  updateSecuritySettings: function (settings) {
-    return api.put('/users/settings/security', settings);
-  },
-  exportLogs: function (format) {
-    return api.get(`/users/logs/export?format=${format}`);
-  }
+  getActivityLogs: (params = {}) => api.get('/admin/logs/activity', { params }),
+  getLoginLogs: (params = {}) => api.get('/admin/logs/login', { params }),
+  getAuditLogs: (params) => api.get('/admin/logs/audit', { params }),
+  clearAuditLogs: () => api.delete('/admin/logs/audit'),
+  getLoginHistory: (userId, params) => api.get(`/admin/users/${userId}/login-history`, { params }),
+  getSecuritySettings: () => api.get('/admin/settings/security'),
+  updateSecuritySettings: (settings) => api.put('/admin/settings/security', settings),
+  exportLogs: (format) => api.get('/admin/logs/export', { params: { format } }),
 };
 
 // Add axios instance methods to apiService

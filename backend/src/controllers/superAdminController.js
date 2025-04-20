@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { DEV_EMAIL, DEV_PASSWORD, JWT_SECRET } = require('../../temp-config');
 
 
@@ -8,14 +9,37 @@ const authenticateSuperAdmin = async (req, res) => {
     const { email, password } = req.body;
     try {
         // validate email and password
-        if (email !== DEV_EMAIL || password == DEV_PASSWORD) {
-            return res.status(403).json({ error: "Invalid Credentials" })
+        if (email !== DEV_EMAIL) {
+            return res.status(403).json({ error: "Invalid email" });
         }
+
+        // Compare password directly with DEV_PASSWORD
+        if (password !== DEV_PASSWORD) {
+            return res.status(403).json({ error: "Invalid password" });
+        }
+
         // generate a jwt for superAdmin 
-        const token = jwt.sign({ email, role: 'super_admin' }, JWT_SECRET, { expiresIn: '1h' })
-        res.status(200).json({ message: 'Login successful', token })
+        const token = jwt.sign({ 
+            id: 'super_admin_1',
+            email, 
+            role: 'super_admin',
+            isSuperAdmin: true 
+        }, JWT_SECRET, { expiresIn: '1h' });
+
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token,
+            user: {
+                id: 'super_admin_1',
+                email,
+                role: 'super_admin',
+                isSuperAdmin: true,
+                first_name: 'Super',
+                last_name: 'Admin'
+            }
+        });
     } catch (error) {
-        console.error('Error during login:', error);
+        console.error('Error during superadmin login:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 }
@@ -59,7 +83,7 @@ const assignRole = async (req, res) => {
     }
 };
 // Toggle feature 
-const toggleFeature = async (res, res) => {
+const toggleFeature = async (req, res) => {
     const { feature, enabled } = req.body;
 
     try {

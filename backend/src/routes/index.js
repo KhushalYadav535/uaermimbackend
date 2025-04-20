@@ -1,14 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const { auth, isAdmin } = require('../middleware/auth');
 
+const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const adminRoutes = require('./adminRoutes');
 
-// Mount routes
-router.use('/users', userRoutes);  // User-specific routes like login, profile
-router.use('/admin', adminRoutes); // Admin-only routes like user management, settings
+// Public routes (login, register)
+router.use('/auth', authRoutes);
 
-// Auth routes at root level
-router.use('/', userRoutes);       // Makes /login, /register available at root
+// Protected routes
+router.use('/users', auth, userRoutes);        // User-specific routes
+router.use('/admin', auth, isAdmin, adminRoutes); // Admin-only routes
 
 module.exports = router;

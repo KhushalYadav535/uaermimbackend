@@ -1,4 +1,4 @@
-const { User, Role, AuditLog, Permission } = require('../models');
+const { User, Role, AuditLog, Permission, LoginLog } = require('../models');
 const { validationResult } = require('express-validator');
 const { Op } = require('sequelize');
 
@@ -8,13 +8,13 @@ const getAllUsers = async (req, res) => {
         const where = {};
         
         if (name) {
-            where.name = { [Op.like]: `%${name}%` };
+            where[Op.or] = [
+                { first_name: { [Op.like]: `%${name}%` } },
+                { last_name: { [Op.like]: `%${name}%` } }
+            ];
         }
         if (email) {
             where.email = { [Op.like]: `%${email}%` };
-        }
-        if (role) {
-            where.role = role;
         }
         if (status) {
             where.status = status;
@@ -22,13 +22,23 @@ const getAllUsers = async (req, res) => {
 
         const users = await User.findAndCountAll({
             where,
+            include: [{
+                model: Role,
+                attributes: ['id', 'name'],
+                through: { attributes: [] },
+                ...(role && { where: { name: role } })
+            }],
+            distinct: true,
             limit: parseInt(limit),
             offset: (page - 1) * limit,
         });
 
+        const activeUsers = users.rows.filter(user => user.status === 'active');
+
         res.json({
             total: users.count,
             users: users.rows,
+            activeCount: activeUsers.length,
             page: parseInt(page),
             totalPages: Math.ceil(users.count / limit),
         });
@@ -210,13 +220,10 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
+    // Create user with plain password - it will be hashed by the beforeCreate hook
     const user = await User.create({
       email,
-      password: hashedPassword,
+      password, // Let the model hook handle password hashing
       first_name,
       last_name,
       status: 'active',
@@ -249,6 +256,17 @@ const register = async (req, res) => {
       { expiresIn: '1d' }
     );
 
+    // Get user roles (if any)
+    const userWithRoles = await User.findByPk(user.id, {
+      include: [{
+        model: Role,
+        attributes: ['id', 'name', 'description'],
+        through: { attributes: [] }
+      }]
+    });
+
+    const userRoles = userWithRoles.Roles.map(role => role.name);
+
     res.status(201).json({
       message: 'Registration successful',
       token,
@@ -256,7 +274,16 @@ const register = async (req, res) => {
         id: user.id,
         email: user.email,
         first_name: user.first_name,
-        last_name: user.last_name
+        last_name: user.last_name,
+        status: user.status,
+        is_email_verified: user.is_email_verified,
+        roles: userWithRoles.Roles.map(role => ({
+          id: role.id,
+          name: role.name,
+          description: role.description
+        })),
+        isAdmin: userRoles.includes('admin'),
+        isSuperAdmin: userRoles.includes('super_admin')
       }
     });
   } catch (error) {
@@ -267,8 +294,10 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
+    console.log('Login attempt:', { email: req.body.email });
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -283,23 +312,28 @@ const login = async (req, res) => {
         through: { attributes: [] }
       }]
     });
+
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Debug password comparison
+    console.log('Comparing passwords for user:', email);
+    console.log('Stored password hash:', user.password);
+    
     // Check password
     const validPassword = await bcrypt.compare(password, user.password);
+    console.log('Password comparison result:', validPassword);
+    
     if (!validPassword) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    // TODO: Re-enable email verification once email sending is implemented
-    // if (!user.is_email_verified) {
-    //   return res.status(403).json({ error: 'Please verify your email first' });
-    // }
 
     // Check user status
     if (user.status !== 'active') {
+      console.log('Inactive user attempted login:', email);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -311,12 +345,11 @@ const login = async (req, res) => {
     );
 
     // Log the login
-    await AuditLog.create({
-      user_id: user.id,
-      action: 'login',
-      details: { message: 'User logged in successfully' },
+    await LoginLog.create({
+      userId: user.id,
       ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+      user_agent: req.get('User-Agent'),
+      status: 'success'
     });
 
     // Add admin flags based on roles
@@ -336,6 +369,8 @@ const login = async (req, res) => {
       isAdmin: userRoles.includes('admin'),
       isSuperAdmin: userRoles.includes('super_admin')
     };
+
+    console.log('Login successful:', { userId: user.id, roles: userRoles });
 
     res.json({
       token,
@@ -493,9 +528,15 @@ const getProfile = async (req, res) => {
     const userRoles = user.Roles.map(role => role.name);
     const userData = {
       ...user.toJSON(),
+      roles: user.Roles,
       isAdmin: userRoles.includes('admin'),
-      isSuperAdmin: userRoles.includes('super_admin')
+      isSuperAdmin: userRoles.includes('super_admin'),
+      firstName: user.first_name,
+      lastName: user.last_name
     };
+
+    // Remove nested Roles array since we're providing it in a flattened format
+    delete userData.Roles;
 
     res.json({ user: userData });
   } catch (error) {

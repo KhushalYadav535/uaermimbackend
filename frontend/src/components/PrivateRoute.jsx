@@ -1,7 +1,7 @@
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Navigate, useLocation } from 'react-router-dom';
 
-export default function PrivateRoute({ children }) {
+export default function PrivateRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -14,5 +14,5 @@ export default function PrivateRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children;
+  return <Outlet />;
 }

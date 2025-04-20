@@ -1,349 +1,164 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
-import api from '../services/api';
-import { FiUsers, FiUserPlus, FiSettings, FiActivity, FiShield, FiUserCheck } from 'react-icons/fi';
-import { MdAdminPanelSettings } from 'react-icons/md';
-import './DashboardPage.css';
+import { FaUsers, FaUserCheck, FaChartLine, FaBell, FaCog, FaSignOutAlt, FaUser, FaTachometerAlt, FaUserShield } from 'react-icons/fa';
+import '../styles/Dashboard.css';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
+const DashboardPage = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
-    totalRoles: 0,
-    recentActivities: [],
-    recentLogins: []
+    newUsers: 0,
+    userGrowth: 0
   });
-  const [userStats, setUserStats] = useState({
-    recentActivities: [],
-    recentLogins: []
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
+    // Fetch dashboard stats
     const fetchStats = async () => {
       try {
-        if (user?.isAdmin || user?.isSuperAdmin) {
-          try {
-            const [
-              usersResponse,
-              rolesResponse,
-              activityLogsResponse,
-              loginLogsResponse,
-              settingsResponse
-            ] = await Promise.all([
-              api.getUsers(),
-              api.getRoles(),
-              api.getActivityLogs({ limit: 5 }),
-              api.getLoginLogs({ limit: 5 }),
-              api.getSettings()
-            ]);
-
-            setStats({
-              totalUsers: usersResponse.data.total_users || 0,
-              activeUsers: (usersResponse.data.users || []).filter(u => u.status === 'active').length,
-              totalRoles: rolesResponse.data.total || 0,
-              recentActivities: activityLogsResponse.data.logs || [],
-              recentLogins: loginLogsResponse.data.logs || [],
-              settings: settingsResponse.data
-            });
-          } catch (err) {
-            console.error('Error fetching admin stats:', err);
-            setError('Failed to fetch admin statistics');
-          }
-        } else {
-          try {
-            const [activityLogsResponse, loginLogsResponse] = await Promise.all([
-              api.getActivityLogs({ limit: 5, user_id: user.id }),
-              api.getLoginLogs({ limit: 5, user_id: user.id })
-            ]);
-
-            setUserStats({
-              recentActivities: activityLogsResponse.data.logs || [],
-              recentLogins: loginLogsResponse.data.logs || []
-            });
-          } catch (err) {
-            console.error('Error fetching user stats:', err);
-            setError('Failed to fetch user statistics');
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
-        setError('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
+        // Replace with actual API call
+        setStats({
+          totalUsers: 1250,
+          activeUsers: 856,
+          newUsers: 125,
+          userGrowth: 15.7
+        });
+      } catch (error) {
+        console.error('Error fetching stats:', error);
       }
     };
 
-    if (user) {
-      fetchStats();
+    fetchStats();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
-  }, [user]);
-
-  const renderAdminStats = () => (
-    <div className="stats-grid">
-      <div className="stat-card">
-        <FiUsers className="stat-icon" />
-        <div className="stat-content">
-          <h3>Total Users</h3>
-          <p>{stats.totalUsers}</p>
-        </div>
-      </div>
-      <div className="stat-card">
-        <FiUserCheck className="stat-icon" />
-        <div className="stat-content">
-          <h3>Active Users</h3>
-          <p>{stats.activeUsers}</p>
-        </div>
-      </div>
-      <div className="stat-card">
-        <FiShield className="stat-icon" />
-        <div className="stat-content">
-          <h3>Total Roles</h3>
-          <p>{stats.totalRoles}</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAdminActions = () => (
-    <div className="admin-actions">
-      <Link to="/admin/users" className="action-card">
-        <FiUserPlus />
-        <span>Manage Users</span>
-      </Link>
-      <Link to="/admin/roles" className="action-card">
-        <FiShield />
-        <span>Manage Roles</span>
-      </Link>
-      <Link to="/admin/settings" className="action-card">
-        <FiSettings />
-        <span>System Settings</span>
-      </Link>
-      <Link to="/admin/logs" className="action-card">
-        <FiActivity />
-        <span>Activity Logs</span>
-      </Link>
-    </div>
-  );
-
-  const renderActivityLog = () => {
-    const activities = user.isAdmin ? stats.recentActivities : userStats.recentActivities;
-    return (
-      <div className="activity-section">
-        <h2>Recent Activities</h2>
-        <div className="activity-list">
-          {activities && activities.length > 0 ? (
-            activities.map((activity, index) => (
-              <div key={activity.id || index} className="activity-item">
-                <div className="activity-icon">
-                  <FiActivity />
-                </div>
-                <div className="activity-details">
-                  <p>
-                    {user.isAdmin && activity.performer && (
-                      <strong>{activity.performer.email}: </strong>
-                    )}
-                    {activity.action}
-                  </p>
-                  <small>{new Date(activity.createdAt).toLocaleString()}</small>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-data">No recent activities</div>
-          )}
-        </div>
-      </div>
-    );
   };
-
-  const renderLoginHistory = () => {
-    const logins = user.isAdmin ? stats.recentLogins : userStats.recentLogins;
-    return (
-      <div className="activity-section">
-        <h2>Recent Logins</h2>
-        <div className="activity-list">
-          {logins && logins.length > 0 ? (
-            logins.map((login, index) => (
-              <div key={login.id || index} className="activity-item">
-                <div className="activity-icon">
-                  <MdAdminPanelSettings />
-                </div>
-                <div className="activity-details">
-                  <p>
-                    {user.isAdmin && login.user && (
-                      <strong>{login.user.email}: </strong>
-                    )}
-                    Login from {login.ipAddress}
-                    {login.location && ` (${login.location.city}, ${login.location.country})`}
-                  </p>
-                  <small>
-                    {new Date(login.createdAt).toLocaleString()} - 
-                    <span className={`status ${login.status.toLowerCase()}`}>
-                      {login.status}
-                    </span>
-                  </small>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-data">No recent logins</div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <div className="loading-spinner">Loading dashboard...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-container">
-        <div className="error-message">{error}</div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-header">
-        <h1>Welcome, {user.first_name}!</h1>
-        <p className="user-role">{user?.roles?.map(r => r.name)?.join(', ') || 'User'}</p>
-      </div>
-
-      {(user.isAdmin || user.isSuperAdmin) && (
-        <>
-          {renderAdminStats()}
-          {renderAdminActions()}
-        </>
-      )}
-
-      <div className="dashboard-content">
-        {user.isAdmin || user.isSuperAdmin ? (
-          <>
-            {renderActivityLog()}
-            {renderLoginHistory()}
-          </>
-        ) : (
-          <>
-            <div className="activity-section">
-              <h2>Your Recent Activities</h2>
-              <div className="activity-list">
-                {userStats.recentActivities.map((activity, index) => (
-                  <div key={index} className="activity-item">
-                    <div className="activity-icon">
-                      <FiActivity />
-                    </div>
-                    <div className="activity-details">
-                      <p>{activity.action}</p>
-                      <small>{new Date(activity.created_at).toLocaleString()}</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="activity-section">
-              <h2>Your Login History</h2>
-              <div className="activity-list">
-                {userStats.recentLogins.map((login, index) => (
-                  <div key={index} className="activity-item">
-                    <div className="activity-icon">
-                      <MdAdminPanelSettings />
-                    </div>
-                    <div className="activity-details">
-                      <p>Login from {login.ip_address}</p>
-                      <small>{new Date(login.created_at).toLocaleString()}</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Welcome back, {user?.firstName}!</h1>
-          <p className="header-subtitle">Here's what's happening with your account today</p>
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <h2>User Management</h2>
         </div>
-        <button onClick={logout} className="logout-button">Logout</button>
-      </header>
+        <nav className="sidebar-nav">
+          <ul className="nav-item">
+            <li>
+              <a href="#" className="nav-link active">
+                <FaTachometerAlt /> Dashboard
+              </a>
+            </li>
+            <li>
+              <a href="#" className="nav-link">
+                <FaUsers /> Users
+              </a>
+            </li>
+            <li>
+              <a href="#" className="nav-link">
+                <FaUserShield /> Roles
+              </a>
+            </li>
+            <li>
+              <a href="#" className="nav-link">
+                <FaCog /> Settings
+              </a>
+            </li>
+          </ul>
+        </nav>
 
-      <nav className="dashboard-nav">
-        <div className="nav-links">
-          <Link to="/profile">My Profile</Link>
-          {user?.isAdmin && (
-            <>
-              <Link to="/admin/users">User Management</Link>
-              <Link to="/admin/roles">Role Management</Link>
-              <Link to="/admin/audit-logs">Audit Logs</Link>
-            </>
-          )}
-        </div>
-      </nav>
-
-      <main className="dashboard-content">
-        <div className="stats-container">
-          <div className="stat-card">
-            <div className="stat-icon">👥</div>
-            <h3>Total Users</h3>
-            <p>{stats.totalUsers}</p>
+        {/* User Profile Section */}
+        <div className="user-profile">
+          <div className="profile-avatar">
+            {user?.first_name?.[0] || 'U'}
           </div>
-          {user?.isAdmin && (
-            <>
-              <div className="stat-card">
-                <div className="stat-icon">🔑</div>
-                <h3>Active Roles</h3>
-                <p>{stats.activeRoles}</p>
+          <div className="profile-info">
+            <p className="profile-name">{user?.first_name} {user?.last_name}</p>
+            <p className="profile-email">{user?.email}</p>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {/* Header */}
+        <header className="dashboard-header">
+          <div className="welcome-text">
+            <h1>Welcome back, {user?.first_name}!</h1>
+            <p>Here's what's happening with your users today.</p>
+          </div>
+          <div className="header-actions">
+            <button className="icon-button">
+              <FaBell />
+            </button>
+            <button className="icon-button" onClick={handleLogout}>
+              <FaSignOutAlt />
+            </button>
+          </div>
+        </header>
+
+        {/* Stats Grid */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-header">
+              <h3 className="stat-title">Total Users</h3>
+              <div className="stat-icon" style={{ background: '#e8f5fe', color: '#3498db' }}>
+                <FaUsers />
               </div>
-              <div className="stat-card">
-                <div className="stat-icon">📊</div>
-                <h3>Recent Activities</h3>
-                <ul>
-                  {stats.recentActivities.map(activity => (
-                    <li key={activity._id}>
-                      <span>{new Date(activity.timestamp).toLocaleString()}</span>
-                      <span>{activity.action}</span>
-                    </li>
-                  ))}
-                </ul>
+            </div>
+            <p className="stat-value">{stats.totalUsers.toLocaleString()}</p>
+            <p className="stat-change">
+              <span>↑</span> {stats.userGrowth}% from last month
+            </p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <h3 className="stat-title">Active Users</h3>
+              <div className="stat-icon" style={{ background: '#e6fff3', color: '#27ae60' }}>
+                <FaUserCheck />
               </div>
-            </>
-          )}
+            </div>
+            <p className="stat-value">{stats.activeUsers.toLocaleString()}</p>
+            <p className="stat-change">
+              <span>↑</span> 12.3% from last month
+            </p>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-header">
+              <h3 className="stat-title">New Users</h3>
+              <div className="stat-icon" style={{ background: '#fff5e6', color: '#f39c12' }}>
+                <FaChartLine />
+              </div>
+            </div>
+            <p className="stat-value">{stats.newUsers.toLocaleString()}</p>
+            <p className="stat-change">
+              <span>↑</span> 8.4% from last month
+            </p>
+          </div>
         </div>
 
-        <div className="quick-actions">
-          <h2>Quick Actions</h2>
-          <div className="action-buttons">
-            <button className="action-button">
-              <span className="action-icon">📝</span> Update Profile
-            </button>
-            <button className="action-button">
-              <span className="action-icon">🔒</span> Change Password
-            </button>
-            {user?.isAdmin && (
-              <button className="action-button">
-                <span className="action-icon">➕</span> Add New User
-              </button>
-            )}
+        {/* Recent Users Grid */}
+        <div className="data-grid">
+          <div className="grid-header">
+            <h2>Recent Users</h2>
+          </div>
+          <div className="grid-content">
+            {/* Add your users table or grid component here */}
+            <p>User data table will be displayed here...</p>
           </div>
         </div>
       </main>
     </div>
-
   );
-}
+};
+
+export default DashboardPage;

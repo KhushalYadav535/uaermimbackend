@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaXTwitter } from 'react-icons/fa6';
-import { FaEyeSlash, FaRegEye } from "react-icons/fa";
+import { FaGoogle, FaFacebook, FaXTwitter, FaEyeSlash, FaRegEye } from 'react-icons/fa6';
+import '../styles/Auth.css';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
+    username: '', // Added username field
     first_name: '',
     last_name: '',
     email: '',
@@ -14,305 +15,255 @@ export default function RegisterPage() {
     confirm_password: ''
   });
   const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
   const [passwordMatchError, setPasswordMatchError] = useState('');
   const [passwordSuggestion, setPasswordSuggestion] = useState('');
 
   const { register } = useAuth();
   const navigate = useNavigate();
-  const { signInWithGoogle, signInWithFacebook, signInWithTwitter } = useAuth();
+
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.username) errors.push('Username is required');
+    if (!formData.first_name) errors.push('First name is required');
+    if (!formData.last_name) errors.push('Last name is required');
+    if (!formData.email) errors.push('Email is required');
+    if (!formData.password) errors.push('Password is required');
+    if (!formData.confirm_password) errors.push('Please confirm your password');
+    
+    if (formData.password !== formData.confirm_password) {
+      errors.push('Passwords do not match');
+    }
+
+    if (formData.password) {
+      if (formData.password.length < 8) errors.push('Password must be at least 8 characters long');
+      if (!/[A-Z]/.test(formData.password)) errors.push('Password must contain at least one uppercase letter');
+      if (!/[a-z]/.test(formData.password)) errors.push('Password must contain at least one lowercase letter');
+      if (!/[0-9]/.test(formData.password)) errors.push('Password must contain at least one number');
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) errors.push('Password must contain at least one special character');
+    }
+
+    return errors;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear field error when user types
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    // check password strength for password field
+    setError(''); // Clear errors when user types
+    
     if (name === 'password') {
-      const strength = checkPasswordStrength(value);
-      setPasswordStrength(strength);
-
-      // Clear old suggestions
-      setPasswordSuggestion('');
-
-      // Suggest improvements
-      const suggestions = [];
-      if (value.length < 12) suggestions.push('Use at least 12 characters');
-      if (!/[A-Z]/.test(value)) suggestions.push('Add an uppercase letter');
-      if (!/[a-z]/.test(value)) suggestions.push('Add a lowercase letter');
-      if (!/[0-9]/.test(value)) suggestions.push('Add a number');
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) suggestions.push('Add a special character');
-      setPasswordSuggestion(suggestions.join(', '));
-    }
-
-    // check password match for confirmation field 
-    if (name === 'confirm_password') {
-      if (value !== formData.password) {
-        setPasswordMatchError("Passwords do not match")
+      checkPasswordStrength(value);
+      if (formData.confirm_password && value !== formData.confirm_password) {
+        setPasswordMatchError('Passwords do not match');
       } else {
         setPasswordMatchError('');
       }
     }
 
-  };
-  const checkPasswordStrength = (password) => {
-    const regexes = {
-      weak: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      medium: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/,
-    };
-
-    if (regexes.weak.test(password)) {
-      return 'strong';
-    } else if (regexes.medium.test(password)) {
-      return 'medium';
-    } else {
-      return 'weak';
+    if (name === 'confirm_password') {
+      if (value !== formData.password) {
+        setPasswordMatchError('Passwords do not match');
+      } else {
+        setPasswordMatchError('');
+      }
     }
   };
 
-  const toggleShowPassword = () => {
-    setShowPassword(prev => !prev);
+  const checkPasswordStrength = (password) => {
+    let strength = '';
+    let suggestions = [];
+
+    if (password.length < 8) {
+      suggestions.push('Use at least 8 characters');
+      strength = 'weak';
+    }
+    if (!/[A-Z]/.test(password)) {
+      suggestions.push('Add an uppercase letter');
+      strength = 'weak';
+    }
+    if (!/[a-z]/.test(password)) {
+      suggestions.push('Add a lowercase letter');
+      strength = 'weak';
+    }
+    if (!/[0-9]/.test(password)) {
+      suggestions.push('Add a number');
+      strength = 'weak';
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      suggestions.push('Add a special character');
+      strength = 'weak';
+    }
+
+    if (!strength && password.length >= 12) {
+      strength = 'strong';
+    } else if (!strength && password.length >= 8) {
+      strength = 'medium';
+    }
+
+    setPasswordStrength(strength);
+    setPasswordSuggestion(suggestions.join(', '));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setFieldErrors({});
-    setLoading(true);
 
-    // Client-side validation
-    if (formData.password !== formData.confirm_password) {
-      setFieldErrors({ confirm_password: 'Passwords do not match' });
-      setLoading(false);
+    // Validate form
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join('\n'));
       return;
     }
 
+    setLoading(true);
+
     try {
-      await register({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        password: formData.password
+      await register(formData);
+      navigate('/login', { 
+        state: { message: 'Registration successful! Please log in.' }
       });
-      navigate('/');
     } catch (err) {
       console.error('Registration error:', err);
-      if (err.validationErrors) {
-        setFieldErrors(err.validationErrors);
-      } else if (err.response?.data?.errors) {
-        // Handle express-validator errors
-        const validationErrors = err.response.data.errors.reduce((acc, error) => {
-          acc[error.param] = error.msg;
-          return acc;
-        }, {});
-        setFieldErrors(validationErrors);
-      } else if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = async (providerFn) => {
-    try {
-      await providerFn();
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Social login error:', err);
-      setError('Social login failed. Please try again.');
-    }
-  };
-
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
+    <div className="auth-container">
       <div className="auth-card">
-        <h2 className="auth-title">Register</h2>
-
+        <h2>Create Account</h2>
         {error && (
-          <div className="error-message" role="alert">
-            {error}
+          <div className="error-message">
+            {error.split('\n').map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
           </div>
         )}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              disabled={loading}
+              required
+            />
+          </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {/* First name field  */}
           <div className="form-group">
             <label htmlFor="first_name">First Name</label>
             <input
-              id="first_name"
               type="text"
+              id="first_name"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
-              required
               disabled={loading}
-              placeholder="Enter your first name"
+              required
             />
-            {fieldErrors.first_name && (
-              <div className="error-message">{fieldErrors.first_name}</div>
-            )}
           </div>
-          {/*  Last name field */}
+
           <div className="form-group">
             <label htmlFor="last_name">Last Name</label>
             <input
-              id="last_name"
               type="text"
+              id="last_name"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
-              required
               disabled={loading}
-              placeholder="Enter your last name"
+              required
             />
-            {fieldErrors.last_name && (
-              <div className="error-message">{fieldErrors.last_name}</div>
-            )}
           </div>
-          {/* Email input field */}
+
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Email</label>
             <input
-              id="email"
               type="email"
+              id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              required
               disabled={loading}
-              autoComplete="username"
-              placeholder="Enter your email"
+              required
             />
-            {fieldErrors.email && (
-              <div className="error-message">{fieldErrors.email}</div>
-            )}
           </div>
 
-          {/* Password input field */}
-          <div className="form-group password-group">
+          <div className="form-group">
             <label htmlFor="password">Password</label>
-            <div className="password-input-wrapper">
+            <div className="password-input">
               <input
+                type={showPassword ? "text" : "password"}
                 id="password"
-                type={showPassword ? 'text' : 'password'}
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                required
                 disabled={loading}
-                autoComplete="new-password"
-                placeholder="Create a strong password"
+                required
               />
               <button
                 type="button"
-                onClick={toggleShowPassword}
-                className="show-password-btn"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
+                className="toggle-password"
+                onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? (
-                  <FaEyeSlash className="w-5 h-5 text-gray-600" />
-                ) : (
-                  <FaRegEye className="w-5 h-5 text-gray-600" />
-                )}
+                {showPassword ? <FaEyeSlash /> : <FaRegEye />}
               </button>
             </div>
-            {fieldErrors.password && (
-              <div className="error-message">{fieldErrors.password}</div>
+            {passwordStrength && (
+              <div className={`password-strength ${passwordStrength}`}>
+                Password Strength: {passwordStrength}
+              </div>
             )}
-            <div className={`password-strength ${passwordStrength}`}>
-              Strength: {passwordStrength.charAt(0).toUpperCase() + passwordStrength.slice(1)}
-            </div>
-            <span className="password-hint">
-              Password must contain at least 12 characters, including an uppercase letter, lowercase letter, number, and special character.
-            </span>
             {passwordSuggestion && (
-              <div className="text-sm text-red mt-1">
-                Suggestions: {passwordSuggestion}
+              <div className="password-suggestion">
+                {passwordSuggestion}
               </div>
             )}
           </div>
 
-          {/* Confirm password field */}
           <div className="form-group">
             <label htmlFor="confirm_password">Confirm Password</label>
-            <input
-              id="confirm_password"
-              type="password"
-              name="confirm_password"
-              value={formData.confirm_password}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              autoComplete="new-password"
-              placeholder="Re-enter your password"
-            />
+            <div className="password-input">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirm_password"
+                name="confirm_password"
+                value={formData.confirm_password}
+                onChange={handleChange}
+                disabled={loading}
+                required
+              />
+              <button
+                type="button"
+                className="toggle-password"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaRegEye />}
+              </button>
+            </div>
             {passwordMatchError && (
-              <div className="error-message">{passwordMatchError}</div>
+              <div className="error-message">
+                {passwordMatchError}
+              </div>
             )}
           </div>
 
-          {/* Social media registration */}
-          <div className="social-login mt-6">
-            <p className="text-center text-sm text-gray-500 mb-3">or sign up with</p>
-            <div className="flex justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin(signInWithGoogle)}
-                className="p-3 bg-white border rounded-full shadow hover:bg-gray-100 transition"
-                aria-label="Register with Google"
-                title="Register with Google"
-              >
-                <FaGoogle className="text-lg text-[#DB4437]" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSocialLogin(signInWithFacebook)}
-                className="p-3 bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
-                aria-label="Register with Facebook"
-                title="Register with Facebook"
-              >
-                <FaFacebook className="text-lg" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSocialLogin(signInWithTwitter)}
-                className="p-3 bg-black text-white rounded-full shadow hover:bg-gray-900 transition"
-                aria-label="Register with Twitter/X"
-                title="Register with Twitter/X"
-              >
-                <FaXTwitter className="text-lg" />
-              </button>
-            </div>
-          </div>
-
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-button"
-          >
-            {loading ? 'Registering...' : 'Register'}
+          <button type="submit" className="auth-button" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
-        <div className="auth-footer">
-          <p>
-            Already have an account?{' '}
-            <Link to="/login" className="auth-link">Login</Link>
-          </p>
+        <div className="auth-links">
+          Already have an account? <Link to="/login">Log In</Link>
         </div>
       </div>
     </div>

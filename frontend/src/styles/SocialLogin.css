@@ -1,0 +1,84 @@
+.social-login {
+  width: 100%;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.social-login-text {
+  color: #666;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.social-login-text::before,
+.social-login-text::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30%;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.social-login-text::before {
+  left: 0;
+}
+
+.social-login-text::after {
+  right: 0;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.social-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.social-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.social-button.google {
+  background-color: #fff;
+  color: #444;
+  border: 1px solid #ddd;
+}
+
+.social-button.google:hover {
+  background-color: #f1f1f1;
+}
+
+.social-button.facebook {
+  background-color: #1877f2;
+  color: white;
+}
+
+.social-button.facebook:hover {
+  background-color: #166fe5;
+}
+
+.social-button.twitter {
+  background-color: #1da1f2;
+  color: white;
+}
+
+.social-button.twitter:hover {
+  background-color: #1a91da;
+}

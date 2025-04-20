@@ -4,6 +4,45 @@ const { auth, isAdmin } = require('../middleware/auth');
 const { User, Role, ActivityLog, LoginLog, Settings } = require('../models');
 const { Op } = require('sequelize');
 
+// Admin Dashboard Routes
+router.get('/dashboard', auth, isAdmin, async (req, res) => {
+  try {
+    // Get user counts
+    const totalUsers = await User.count();
+    const activeUsers = await User.count({ where: { status: 'active' } });
+    const adminUsers = await User.count({ where: { role: 'admin' } });
+
+    // Get recent users
+    const recentUsers = await User.findAll({
+      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'status', 'createdAt'],
+      order: [['createdAt', 'DESC']],
+      limit: 5
+    });
+
+    res.json({
+      stats: {
+        totalUsers,
+        activeUsers,
+        adminUsers
+      },
+      recentUsers: recentUsers.map(user => ({
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Admin dashboard error:', error);
+    res.status(500).json({
+      errors: [{ msg: 'Error fetching admin dashboard data' }]
+    });
+  }
+});
+
 // User Management Routes
 router.get('/users', auth, isAdmin, async (req, res) => {
   try {
@@ -585,6 +624,74 @@ router.get('/logs/export', auth, isAdmin, async (req, res) => {
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all users
+router.get('/users', auth, isAdmin, async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'status', 'createdAt']
+    });
+
+    res.json({
+      users: users.map(user => ({
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      errors: [{ msg: 'Error fetching users' }]
+    });
+  }
+});
+
+// Update user
+router.put('/users/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, status } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        errors: [{ msg: 'User not found' }]
+      });
+    }
+
+    // Don't allow changing superadmin's role
+    if (user.email === 'superadmin@example.com') {
+      return res.status(403).json({
+        errors: [{ msg: 'Cannot modify superadmin account' }]
+      });
+    }
+
+    if (role) user.role = role;
+    if (status) user.status = status;
+    await user.save();
+
+    res.json({
+      user: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({
+      errors: [{ msg: 'Error updating user' }]
+    });
   }
 });
 
