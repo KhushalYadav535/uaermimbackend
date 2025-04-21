@@ -3,100 +3,16 @@ const router = express.Router();
 const { auth, isAdmin } = require('../middleware/auth');
 const { User, Role, ActivityLog, LoginLog, Settings } = require('../models');
 const { Op } = require('sequelize');
+const adminController = require('../controllers/adminController');
 
 // Admin Dashboard Routes
-router.get('/dashboard', auth, isAdmin, async (req, res) => {
-  try {
-    // Get user counts
-    const totalUsers = await User.count();
-    const activeUsers = await User.count({ where: { status: 'active' } });
-    const adminUsers = await User.count({ where: { role: 'admin' } });
-
-    // Get recent users
-    const recentUsers = await User.findAll({
-      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'status', 'createdAt'],
-      order: [['createdAt', 'DESC']],
-      limit: 5
-    });
-
-    res.json({
-      stats: {
-        totalUsers,
-        activeUsers,
-        adminUsers
-      },
-      recentUsers: recentUsers.map(user => ({
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        createdAt: user.createdAt
-      }))
-    });
-  } catch (error) {
-    console.error('Admin dashboard error:', error);
-    res.status(500).json({
-      errors: [{ msg: 'Error fetching admin dashboard data' }]
-    });
-  }
-});
+router.get('/dashboard', auth, isAdmin, adminController.getDashboardStats);
+router.get('/stats/users', auth, isAdmin, adminController.getUserStats);
 
 // User Management Routes
-router.get('/users', auth, isAdmin, async (req, res) => {
-  try {
-    const { page = 1, limit = 10, search, role, is_email_verified, start_date, end_date } = req.query;
-    const offset = (page - 1) * limit;
-    const where = {};
-
-    // Apply filters
-    if (search) {
-      where[Op.or] = [
-        { first_name: { [Op.like]: `%${search}%` } },
-        { last_name: { [Op.like]: `%${search}%` } },
-        { email: { [Op.like]: `%${search}%` } }
-      ];
-    }
-    if (is_email_verified !== undefined) {
-      where.is_email_verified = is_email_verified === 'true';
-    }
-    if (start_date || end_date) {
-      where.created_at = {};
-      if (start_date) where.created_at[Op.gte] = new Date(start_date);
-      if (end_date) where.created_at[Op.lte] = new Date(end_date);
-    }
-
-    const { rows: users, count: total } = await User.findAndCountAll({
-      where,
-      attributes: { exclude: ['password', 'accountLocked', 'accountLockedUntil', 'loginAttempts'] },
-      limit: parseInt(limit),
-      offset,
-      order: [['createdAt', 'DESC']],
-      include: [{
-        model: Role,
-        attributes: ['id', 'name', 'description', 'level'],
-        through: { attributes: [] },
-        ...(role ? { where: { name: role } } : {})
-      }]
-    });
-
-    const formattedUsers = users.map(user => ({
-      ...user.toJSON(),
-      status: user.accountLocked ? 'locked' : 'active'
-    }));
-
-    res.json({
-      users: formattedUsers,
-      total_pages: Math.ceil(total / limit),
-      current_page: parseInt(page),
-      total_users: total
-    });
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
+router.get('/users', auth, isAdmin, adminController.getUsers);
+router.post('/users', auth, isAdmin, adminController.createUser);
+router.put('/users/:id', auth, isAdmin, adminController.updateUser);
 
 // Get User Details
 router.get('/users/:id', auth, isAdmin, async (req, res) => {
@@ -232,51 +148,8 @@ router.delete('/users/:id', auth, isAdmin, async (req, res) => {
 });
 
 // Role Management Routes
-router.get('/roles', auth, isAdmin, async (req, res) => {
-  try {
-    const roles = await Role.findAll({
-      attributes: ['id', 'name', 'description', 'level', 'isSystemRole'],
-      order: [['level', 'DESC']]
-    });
-    res.json({ roles });
-  } catch (error) {
-    console.error('Error fetching roles:', error);
-    res.status(500).json({ error: 'Failed to fetch roles' });
-  }
-});
-
-router.post('/roles', auth, isAdmin, async (req, res) => {
-  try {
-    const { name, description, level } = req.body;
-    
-    // Check if role already exists
-    const existingRole = await Role.findOne({ where: { name } });
-    if (existingRole) {
-      return res.status(400).json({ error: 'Role with this name already exists' });
-    }
-
-    const role = await Role.create({
-      name,
-      description,
-      level: level || 1,
-      isSystemRole: false
-    });
-
-    await ActivityLog.create({
-      action: 'role_create',
-      details: { role_id: role.id, role_name: role.name },
-      performed_by: req.user.id,
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
-    });
-
-    res.json({ role });
-  } catch (error) {
-    console.error('Error creating role:', error);
-    res.status(500).json({ error: 'Failed to create role' });
-  }
-});
-
+router.get('/roles', auth, isAdmin, adminController.getRoles);
+router.post('/roles', auth, isAdmin, adminController.createRole);
 router.put('/roles/:id', auth, isAdmin, async (req, res) => {
   try {
     const { name, description, level } = req.body;
@@ -345,30 +218,8 @@ router.delete('/roles/:id', auth, isAdmin, async (req, res) => {
 });
 
 // System Settings Routes
-router.get('/settings', auth, isAdmin, async (req, res) => {
-  try {
-    const [settings] = await Settings.findOrCreate({
-      where: {},
-      defaults: {
-        require_email_verification: false,
-        enforce_2fa: false,
-        enforce_2fa_by_role: [],
-        password_policy: {
-          min_length: 8,
-          require_uppercase: true,
-          require_lowercase: true,
-          require_numbers: true,
-          require_symbols: true
-        },
-        session_timeout: 3600 // 1 hour in seconds
-      }
-    });
-    res.json(settings);
-  } catch (error) {
-    console.error('Error fetching settings:', error);
-    res.status(500).json({ error: 'Failed to fetch settings' });
-  }
-});
+router.get('/settings', auth, isAdmin, adminController.getSettings);
+router.put('/settings', auth, isAdmin, adminController.updateSettings);
 
 // Get Recent Login Logs
 router.get('/login-logs', auth, isAdmin, async (req, res) => {
@@ -440,46 +291,6 @@ router.get('/activity-logs', auth, isAdmin, async (req, res) => {
   }
 });
 
-// Update Authentication Settings
-router.put('/settings/auth', auth, isAdmin, async (req, res) => {
-  try {
-    const {
-      require_email_verification,
-      enforce_2fa,
-      enforce_2fa_by_role,
-      password_policy,
-      session_timeout
-    } = req.body;
-
-    const [settings] = await Settings.findOrCreate({
-      where: {},
-      defaults: {}
-    });
-
-    await settings.update({
-      require_email_verification,
-      enforce_2fa,
-      enforce_2fa_by_role,
-      password_policy,
-      session_timeout
-    });
-
-    // Log the settings update
-    await ActivityLog.create({
-      action: 'settings_update',
-      details: { type: 'auth', ...req.body },
-      performed_by: req.user.id,
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
-    });
-
-    res.json(settings);
-  } catch (error) {
-    console.error('Error updating settings:', error);
-    res.status(500).json({ error: 'Failed to update settings' });
-  }
-});
-
 // Resend Verification Email
 router.post('/users/:id/resend-verification', auth, isAdmin, async (req, res) => {
   try {
@@ -503,93 +314,6 @@ router.post('/users/:id/resend-verification', auth, isAdmin, async (req, res) =>
     res.json({ message: 'Verification email sent' });
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
-});
-
-// Role Management Routes
-router.get('/roles', auth, isAdmin, async (req, res) => {
-  try {
-    const { page = 1, limit = 10, search } = req.query;
-    const offset = (page - 1) * limit;
-    const where = {};
-
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.like]: `%${search}%` } },
-        { description: { [Op.like]: `%${search}%` } }
-      ];
-    }
-
-    const { rows: roles, count: total } = await Role.findAndCountAll({
-      where,
-      limit: parseInt(limit),
-      offset,
-      order: [['level', 'DESC']]
-    });
-
-    res.json({
-      roles,
-      total_pages: Math.ceil(total / limit),
-      current_page: parseInt(page),
-      total
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/roles', auth, isAdmin, async (req, res) => {
-  try {
-    const { name, description, permissions, level } = req.body;
-    const role = await Role.create({
-      name,
-      description,
-      permissions,
-      level,
-      is_system_role: false
-    });
-    res.status(201).json(role);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put('/roles/:id', auth, isAdmin, async (req, res) => {
-  try {
-    const { name, description, permissions } = req.body;
-    const role = await Role.findByPk(req.params.id);
-    
-    if (!role) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-
-    if (role.is_system_role) {
-      return res.status(403).json({ error: 'Cannot modify system roles' });
-    }
-
-    await role.update({ name, description, permissions });
-    res.json(role);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/roles/:id', auth, isAdmin, async (req, res) => {
-  try {
-    const role = await Role.findByPk(req.params.id);
-    
-    if (!role) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-
-    if (role.is_system_role) {
-      return res.status(403).json({ error: 'Cannot delete system roles' });
-    }
-
-    await role.destroy();
-    res.json({ message: 'Role deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 
@@ -624,74 +348,6 @@ router.get('/logs/export', auth, isAdmin, async (req, res) => {
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
-});
-
-// Get all users
-router.get('/users', auth, isAdmin, async (req, res) => {
-  try {
-    const users = await User.findAll({
-      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'status', 'createdAt']
-    });
-
-    res.json({
-      users: users.map(user => ({
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        createdAt: user.createdAt
-      }))
-    });
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({
-      errors: [{ msg: 'Error fetching users' }]
-    });
-  }
-});
-
-// Update user
-router.put('/users/:id', auth, isAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, status } = req.body;
-
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({
-        errors: [{ msg: 'User not found' }]
-      });
-    }
-
-    // Don't allow changing superadmin's role
-    if (user.email === 'superadmin@example.com') {
-      return res.status(403).json({
-        errors: [{ msg: 'Cannot modify superadmin account' }]
-      });
-    }
-
-    if (role) user.role = role;
-    if (status) user.status = status;
-    await user.save();
-
-    res.json({
-      user: {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        role: user.role,
-        status: user.status
-      }
-    });
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({
-      errors: [{ msg: 'Error updating user' }]
-    });
   }
 });
 

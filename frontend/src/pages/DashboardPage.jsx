@@ -99,7 +99,7 @@ const DashboardPage = () => {
               <FaBell />
             </button>
             <button className="icon-button" onClick={handleLogout}>
-              <FaSignOutAlt />
+              <FaSignOutAlt /> Logout
             </button>
           </div>
         </header>

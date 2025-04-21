@@ -1,13 +1,16 @@
-const { User, Role } = require('../models');
+const { User, Role, ActivityLog, LoginLog, Settings } = require('../models');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
+const sequelize = require('sequelize');
 
-// Get dashboard stats
+// Get dashboard stats with detailed metrics
 const getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.count();
     const activeUsers = await User.count({ where: { status: 'active' } });
     const totalRoles = await Role.count();
+    
+    // Get new users in last 24 hours
     const newUsersToday = await User.count({
       where: {
         createdAt: {
@@ -16,12 +19,34 @@ const getDashboardStats = async (req, res) => {
       }
     });
 
+    // Get user role distribution
+    const roleDistribution = await User.findAll({
+      attributes: [
+        'role',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['role']
+    });
+
+    // Get recent activity
+    const recentActivity = await ActivityLog.findAll({
+      limit: 5,
+      order: [['createdAt', 'DESC']],
+      include: [{
+        model: User,
+        as: 'performer',
+        attributes: ['id', 'email', 'firstName', 'lastName']
+      }]
+    });
+
     res.json({
       stats: {
         totalUsers,
         activeUsers,
         totalRoles,
-        newUsersToday
+        newUsersToday,
+        roleDistribution,
+        recentActivity
       }
     });
   } catch (error) {
@@ -30,34 +55,59 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-// Get all users with pagination and search
+// Get all users with advanced filtering and search
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', status, role } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      status, 
+      role,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      startDate,
+      endDate
+    } = req.query;
+    
     const offset = (page - 1) * limit;
-
     let whereClause = {};
+
+    // Search filter
     if (search) {
       whereClause = {
         [Op.or]: [
-          { first_name: { [Op.like]: `%${search}%` } },
-          { last_name: { [Op.like]: `%${search}%` } },
+          { firstName: { [Op.like]: `%${search}%` } },
+          { lastName: { [Op.like]: `%${search}%` } },
           { email: { [Op.like]: `%${search}%` } }
         ]
       };
     }
+
+    // Status filter
     if (status) whereClause.status = status;
+
+    // Date range filter
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
+      if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate);
+    }
 
     const users = await User.findAndCountAll({
       where: whereClause,
       include: [{
         model: Role,
-        attributes: ['name'],
+        attributes: ['id', 'name', 'description'],
+        through: { attributes: [] },
         where: role ? { name: role } : undefined
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order: [[sortBy, sortOrder]],
+      attributes: { 
+        exclude: ['password', 'resetToken', 'resetTokenExpiry'] 
+      }
     });
 
     res.json({
@@ -72,10 +122,17 @@ const getUsers = async (req, res) => {
   }
 };
 
-// Create new user
+// Create new user with roles
 const createUser = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, role_names = ['user'] } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      password, 
+      roles,
+      status = 'active'
+    } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ where: { email } });
@@ -83,30 +140,39 @@ const createUser = async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     // Create user
     const user = await User.create({
-      first_name,
-      last_name,
+      firstName,
+      lastName,
       email,
-      password: hashedPassword,
-      status: 'active'
+      password: await bcrypt.hash(password, 10),
+      status
     });
 
     // Assign roles
-    const roles = await Role.findAll({ where: { name: role_names } });
-    await user.setRoles(roles);
+    if (roles && roles.length > 0) {
+      const userRoles = await Role.findAll({
+        where: { name: { [Op.in]: roles } }
+      });
+      await user.setRoles(userRoles);
+    }
+
+    // Log activity
+    await ActivityLog.create({
+      action: 'CREATE_USER',
+      performerId: req.user.id,
+      details: `Created user: ${email}`
+    });
 
     res.status(201).json({
       message: 'User created successfully',
       user: {
         id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
-        roles: role_names
+        status: user.status,
+        roles: roles
       }
     });
   } catch (error) {
@@ -115,11 +181,17 @@ const createUser = async (req, res) => {
   }
 };
 
-// Update user
+// Update user details and roles
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { first_name, last_name, email, status, role_names } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      roles,
+      status
+    } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -128,27 +200,36 @@ const updateUser = async (req, res) => {
 
     // Update user details
     await user.update({
-      first_name: first_name || user.first_name,
-      last_name: last_name || user.last_name,
+      firstName: firstName || user.firstName,
+      lastName: lastName || user.lastName,
       email: email || user.email,
       status: status || user.status
     });
 
     // Update roles if provided
-    if (role_names) {
-      const roles = await Role.findAll({ where: { name: role_names } });
-      await user.setRoles(roles);
+    if (roles && roles.length > 0) {
+      const userRoles = await Role.findAll({
+        where: { name: { [Op.in]: roles } }
+      });
+      await user.setRoles(userRoles);
     }
+
+    // Log activity
+    await ActivityLog.create({
+      action: 'UPDATE_USER',
+      performerId: req.user.id,
+      details: `Updated user: ${user.email}`
+    });
 
     res.json({
       message: 'User updated successfully',
       user: {
         id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         status: user.status,
-        roles: role_names
+        roles: roles
       }
     });
   } catch (error) {
@@ -175,10 +256,13 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// Get all roles
+// Role management
 const getRoles = async (req, res) => {
   try {
-    const roles = await Role.findAll();
+    const roles = await Role.findAll({
+      attributes: ['id', 'name', 'description', 'permissions'],
+      order: [['name', 'ASC']]
+    });
     res.json({ roles });
   } catch (error) {
     console.error('Error getting roles:', error);
@@ -186,11 +270,11 @@ const getRoles = async (req, res) => {
   }
 };
 
-// Create new role
 const createRole = async (req, res) => {
   try {
-    const { name, description, level = 1 } = req.body;
+    const { name, description, permissions } = req.body;
 
+    // Check if role exists
     const existingRole = await Role.findOne({ where: { name } });
     if (existingRole) {
       return res.status(400).json({ error: 'Role already exists' });
@@ -199,8 +283,14 @@ const createRole = async (req, res) => {
     const role = await Role.create({
       name,
       description,
-      level,
-      is_system_role: false
+      permissions
+    });
+
+    // Log activity
+    await ActivityLog.create({
+      action: 'CREATE_ROLE',
+      performerId: req.user.id,
+      details: `Created role: ${name}`
     });
 
     res.status(201).json({
@@ -213,93 +303,91 @@ const createRole = async (req, res) => {
   }
 };
 
-// Update role
-const updateRole = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, level } = req.body;
-
-    const role = await Role.findByPk(id);
-    if (!role) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-
-    if (role.is_system_role) {
-      return res.status(403).json({ error: 'System roles cannot be modified' });
-    }
-
-    await role.update({
-      name: name || role.name,
-      description: description || role.description,
-      level: level || role.level
-    });
-
-    res.json({
-      message: 'Role updated successfully',
-      role
-    });
-  } catch (error) {
-    console.error('Error updating role:', error);
-    res.status(500).json({ error: 'Failed to update role' });
-  }
-};
-
-// Delete role
-const deleteRole = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const role = await Role.findByPk(id);
-    
-    if (!role) {
-      return res.status(404).json({ error: 'Role not found' });
-    }
-
-    if (role.is_system_role) {
-      return res.status(403).json({ error: 'System roles cannot be deleted' });
-    }
-
-    await role.destroy();
-    res.json({ message: 'Role deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting role:', error);
-    res.status(500).json({ error: 'Failed to delete role' });
-  }
-};
-
-// Get system settings
+// System settings
 const getSettings = async (req, res) => {
   try {
-    // Add your system settings logic here
-    const settings = {
-      // Example settings
-      userRegistration: true,
-      maxLoginAttempts: 5,
-      sessionTimeout: 24,
-      passwordPolicy: {
-        minLength: 8,
-        requireNumbers: true,
-        requireSymbols: true
-      }
-    };
-    res.json({ settings });
+    const settings = await Settings.findAll();
+    const formattedSettings = settings.reduce((acc, setting) => {
+      acc[setting.key] = setting.value;
+      return acc;
+    }, {});
+
+    res.json({ settings: formattedSettings });
   } catch (error) {
     console.error('Error getting settings:', error);
     res.status(500).json({ error: 'Failed to get settings' });
   }
 };
 
-// Update system settings
 const updateSettings = async (req, res) => {
   try {
-    const settings = req.body;
-    // Add your settings update logic here
+    const updates = req.body;
+
+    for (const [key, value] of Object.entries(updates)) {
+      await Settings.upsert({ key, value });
+    }
+
+    // Log activity
+    await ActivityLog.create({
+      action: 'UPDATE_SETTINGS',
+      performerId: req.user.id,
+      details: 'Updated system settings'
+    });
+
     res.json({
       message: 'Settings updated successfully',
-      settings
+      settings: updates
     });
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+};
+
+// Get user statistics
+const getUserStats = async (req, res) => {
+  try {
+    const totalUsers = await User.count();
+    const activeUsers = await User.count({ where: { status: 'active' } });
+    const inactiveUsers = await User.count({ where: { status: 'inactive' } });
+    
+    const roleStats = await User.findAll({
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('User.id')), 'count']
+      ],
+      include: [{
+        model: Role,
+        attributes: ['name'],
+        through: { attributes: [] }
+      }],
+      group: ['Role.name']
+    });
+
+    const newUsersPerMonth = await User.findAll({
+      attributes: [
+        [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt')), 'month'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      where: {
+        createdAt: {
+          [Op.gte]: new Date(new Date().setMonth(new Date().getMonth() - 6))
+        }
+      },
+      group: [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('createdAt'))]
+    });
+
+    res.json({
+      stats: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        roleDistribution: roleStats,
+        newUsersPerMonth
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    res.status(500).json({ error: 'Failed to get user statistics' });
   }
 };
 
@@ -311,8 +399,7 @@ module.exports = {
   deleteUser,
   getRoles,
   createRole,
-  updateRole,
-  deleteRole,
   getSettings,
-  updateSettings
+  updateSettings,
+  getUserStats
 }; 

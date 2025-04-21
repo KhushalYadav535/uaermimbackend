@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaUsers, FaUserShield, FaCog, FaChartBar, FaBell, FaSearch, FaEllipsisV, FaUserPlus, FaBars } from 'react-icons/fa';
+import { FaUsers, FaUserShield, FaCog, FaChartBar, FaBell, FaSearch, FaEllipsisV, FaUserPlus, FaBars, FaSignOutAlt } from 'react-icons/fa';
 import '../styles/Dashboard.css';
 
 const AdminDashboard = () => {
@@ -33,6 +33,10 @@ const AdminDashboard = () => {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleLogout = () => {
+    // Add logout functionality here
   };
 
   return (
@@ -106,6 +110,9 @@ const AdminDashboard = () => {
             <button className="icon-button">
               <FaBell />
               <span className="notification-badge">3</span>
+            </button>
+            <button className="icon-button" onClick={handleLogout}>
+              <FaSignOutAlt /> Logout
             </button>
           </div>
         </header>
