@@ -1,11 +1,12 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://uaermimbackend.onrender.com/api'),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
-  }
+  },
+  withCredentials: true
 });
 
 // Request interceptor for adding auth token
@@ -44,6 +45,10 @@ const apiService = {
   logout: () => api.post('/auth/logout'),
   getProfile: () => api.get('/auth/profile'),
   resetAccountLock: (email) => api.post('/auth/reset-lock', { email }),
+
+  // User endpoints
+  updateProfile: (userData) => api.put('/users/profile', userData),
+  changePassword: (data) => api.put('/users/change-password', data),
 
   // Admin endpoints
   getUsers: (params) => api.get('/admin/users', { params }),
