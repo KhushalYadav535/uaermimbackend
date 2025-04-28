@@ -8,15 +8,21 @@ const { DEV_EMAIL, DEV_PASSWORD, JWT_SECRET } = require('../../temp-config');
 const authenticateSuperAdmin = async (req, res) => {
     const { email, password } = req.body;
     try {
+        console.log('SuperAdmin Login Attempt:', { email, password });
+
         // validate email and password
         if (email !== DEV_EMAIL) {
+            console.error('SuperAdmin Login Failed: Invalid email');
             return res.status(403).json({ error: "Invalid email" });
         }
 
         // Compare password directly with DEV_PASSWORD
         if (password !== DEV_PASSWORD) {
+            console.error('SuperAdmin Login Failed: Invalid password');
             return res.status(403).json({ error: "Invalid password" });
         }
+
+        console.log('SuperAdmin Login Successful:', { email });
 
         // generate a jwt for superAdmin 
         const token = jwt.sign({ 

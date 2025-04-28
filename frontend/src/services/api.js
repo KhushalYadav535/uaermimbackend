@@ -1,12 +1,15 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://uaermimbackend.onrender.com/api'),
+  baseURL: import.meta.env.VITE_API_BASE_URL || 
+           (window.location.hostname === 'localhost' 
+             ? 'http://localhost:5000/api' 
+             : '/api'),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  withCredentials: true
+  withCredentials: false
 });
 
 // Request interceptor for adding auth token
@@ -29,7 +32,7 @@ api.interceptors.response.use(function (response) {
     response: error.response?.data,
     status: error.response?.status
   });
-  
+
   if (error.response && error.response.status === 401) {
     localStorage.removeItem('token');
     window.location.href = '/login';

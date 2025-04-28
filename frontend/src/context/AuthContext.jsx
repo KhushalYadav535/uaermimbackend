@@ -29,20 +29,18 @@ export function AuthProvider({ children }) {
       if (data.user) {
         setUser(data.user);
         setIsAuthenticated(true);
-        
-        // Only redirect if on login/register pages
-        if (['/login', '/register'].includes(location.pathname)) {
-          // Redirect based on role
-          if (data.user.role === 'admin' || data.user.role === 'super_admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate('/dashboard');
-          }
+
+        // Redirect based on role
+        if (data.user.role === 'admin' || data.user.role === 'super_admin') {
+          navigate('/admin/dashboard');
+        } else if (data.user.role === 'user') {
+          navigate('/dashboard');
+        } else {
+          navigate('/'); // Fallback for unrecognized roles
         }
       }
     } catch (err) {
       console.error('Error fetching user:', err);
-      // Only logout if it's not a 401 error from profile endpoint
       if (!(err.response?.status === 401 && err.config?.url?.includes('/profile'))) {
         logout();
       }
@@ -53,30 +51,27 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      console.log('Attempting login with:', { email });
       let response;
-      
-      // Use admin login for super admin
       if (email === DEV_EMAIL) {
         response = await api.adminLogin({ email, password });
       } else {
         response = await api.login({ email, password });
       }
-      
+
       const { data } = response;
-      console.log('Login response:', data);
-      
       if (data.token) {
         localStorage.setItem('token', data.token);
         setToken(data.token);
         setUser(data.user);
         setIsAuthenticated(true);
-        
+
         // Redirect based on role
         if (data.user.role === 'admin' || data.user.role === 'super_admin') {
           navigate('/admin/dashboard');
-        } else {
+        } else if (data.user.role === 'user') {
           navigate('/dashboard');
+        } else {
+          navigate('/'); // Fallback for unrecognized roles
         }
         return data;
       }

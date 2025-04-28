@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Role } = require('../models');
 
 const auth = async (req, res, next) => {
   try {
@@ -22,13 +22,20 @@ const auth = async (req, res, next) => {
         isSuperAdmin: true,
         first_name: 'Super',
         last_name: 'Admin',
-        status: 'active'
+        status: 'active',
+        roles: ['super_admin']
       };
       req.token = token;
       return next();
     }
 
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(decoded.id, {
+      include: [{
+        model: Role,
+        attributes: ['name'],
+        through: { attributes: [] }
+      }]
+    });
 
     if (!user) {
       return res.status(404).json({ 
@@ -42,7 +49,9 @@ const auth = async (req, res, next) => {
       });
     }
 
+    // Set roles as array of role names for easier checking
     req.user = user;
+    req.user.roles = user.Roles ? user.Roles.map(role => role.name) : [];
     req.token = token;
     next();
   } catch (error) {

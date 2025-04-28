@@ -13,15 +13,8 @@ module.exports = (sequelize) => {
       unique: true
     },
     description: {
-      type: DataTypes.STRING
-    },
-    module: {
       type: DataTypes.STRING,
-      allowNull: false
-    },
-    action: {
-      type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     }
   }, {
     tableName: 'permissions',
@@ -29,5 +22,9 @@ module.exports = (sequelize) => {
     underscored: true
   });
 
+  Permission.associate = (models) => {
+    // Define associations here if needed
+  };
+
   return Permission;
-}; 
+};

@@ -5,16 +5,21 @@ module.exports = (sequelize) => {
   class User extends Model {
     static associate(models) {
       // User-Role many-to-many relationship
-      User.belongsToMany(models.Role, { through: 'UserRoles' });
+      User.belongsToMany(models.Role, {
+        through: 'user_roles',
+        foreignKey: 'user_id',
+        otherKey: 'role_id',
+        as: 'roles'
+      });
       
       // User-AuditLog one-to-many relationship
       User.hasMany(models.AuditLog, { foreignKey: 'user_id' });
       
       // User-LoginLog one-to-many relationship
-      User.hasMany(models.LoginLog, { foreignKey: 'userId' });
+      User.hasMany(models.LoginLog, { foreignKey: 'user_id' });
       
       // User-ActivityLog one-to-many relationship
-      User.hasMany(models.ActivityLog, { foreignKey: 'userId' });
+      User.hasMany(models.ActivityLog, { foreignKey: 'user_id' });
     }
   }
 

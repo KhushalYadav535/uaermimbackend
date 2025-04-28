@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaUsers, FaUserCheck, FaChartLine, FaBell, FaCog, FaSignOutAlt, FaUser, FaTachometerAlt, FaUserShield } from 'react-icons/fa';
+import api from '../services/api';
 import '../styles/Dashboard.css';
 
 const DashboardPage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -15,23 +16,29 @@ const DashboardPage = () => {
   });
 
   useEffect(() => {
-    // Fetch dashboard stats
     const fetchStats = async () => {
       try {
-        // Replace with actual API call
-        setStats({
-          totalUsers: 1250,
-          activeUsers: 856,
-          newUsers: 125,
-          userGrowth: 15.7
-        });
+        const response = await api.get(
+          user?.role === 'admin' || user?.role === 'super_admin'
+            ? '/admin/dashboard'
+            : '/user/dashboard'
+        );
+        setStats(response.data);
       } catch (error) {
         console.error('Error fetching stats:', error);
+        setStats({
+          totalUsers: 0,
+          activeUsers: 0,
+          newUsers: 0,
+          userGrowth: 0
+        });
       }
     };
 
-    fetchStats();
-  }, []);
+    if (isAuthenticated) {
+      fetchStats();
+    }
+  }, [user, isAuthenticated]);
 
   const handleLogout = async () => {
     try {
@@ -56,16 +63,20 @@ const DashboardPage = () => {
                 <FaTachometerAlt /> Dashboard
               </a>
             </li>
-            <li>
-              <a href="#" className="nav-link">
-                <FaUsers /> Users
-              </a>
-            </li>
-            <li>
-              <a href="#" className="nav-link">
-                <FaUserShield /> Roles
-              </a>
-            </li>
+            {(user?.role === 'admin' || user?.role === 'super_admin') && (
+              <>
+                <li>
+                  <Link to="/admin/users" className="nav-link">
+                    <FaUsers /> Users
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/roles" className="nav-link">
+                    <FaUserShield /> Roles
+                  </Link>
+                </li>
+              </>
+            )}
             <li>
               <a href="#" className="nav-link">
                 <FaCog /> Settings

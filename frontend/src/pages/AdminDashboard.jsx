@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { FaUsers, FaUserShield, FaCog, FaChartBar, FaBell, FaSearch, FaEllipsisV, FaUserPlus, FaBars, FaSignOutAlt } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
+import apiService from '../services/api';
 
 const AdminDashboard = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
   const [stats, setStats] = useState({
-    totalUsers: 1250,
-    activeUsers: 856,
-    totalRoles: 5,
-    newUsersToday: 23
+    totalUsers: 0,
+    activeUsers: 0,
+    totalRoles: 0,
+    newUsersToday: 0
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  const [recentUsers, setRecentUsers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'User', status: 'Active' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Admin', status: 'Active' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'User', status: 'Pending' },
-  ]);
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const handleResize = () => {
@@ -31,12 +35,60 @@ const AdminDashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const statsResponse = await apiService.get('/admin/dashboard');
+        const usersResponse = await apiService.get('/admin/users', { params: { limit: 5 } });
+
+        setStats({
+          totalUsers: statsResponse.data.stats.totalUsers,
+          activeUsers: statsResponse.data.stats.activeUsers,
+          totalRoles: statsResponse.data.stats.totalRoles,
+          newUsersToday: statsResponse.data.stats.newUsersToday
+        });
+
+        setRecentUsers(usersResponse.data.users.map(user => ({
+          id: user.id,
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.roles[0]?.name || 'N/A',
+          status: user.status
+        })));
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleLogout = () => {
-    // Add logout functionality here
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const handleViewAllUsers = () => {
+    navigate('/admin/users');
+  };
+
+  const handleAddNewUser = () => {
+    navigate('/admin/users/new');
+  };
+
+  const handleManageRoles = () => {
+    navigate('/admin/roles');
   };
 
   return (
@@ -71,24 +123,24 @@ const AdminDashboard = () => {
         <nav className="sidebar-nav">
           <ul className="nav-item">
             <li>
-              <a href="#" className="nav-link active">
+              <Link to="/admin/dashboard" className="nav-link active">
                 <FaChartBar /> Overview
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="#" className="nav-link">
+              <Link to="/admin/users" className="nav-link">
                 <FaUsers /> Users
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="#" className="nav-link">
+              <Link to="/admin/roles" className="nav-link">
                 <FaUserShield /> Roles
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="#" className="nav-link">
+              <Link to="/admin/settings" className="nav-link">
                 <FaCog /> Settings
-              </a>
+              </Link>
             </li>
           </ul>
         </nav>
@@ -105,7 +157,12 @@ const AdminDashboard = () => {
           <div className="header-actions">
             <div className="search-bar">
               <FaSearch />
-              <input type="text" placeholder="Search users..." />
+              <input 
+                type="text" 
+                placeholder="Search users..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <button className="icon-button">
               <FaBell />
@@ -119,10 +176,10 @@ const AdminDashboard = () => {
 
         {/* Quick Actions */}
         <div className="quick-actions">
-          <button className="action-button primary">
+          <button className="action-button primary" onClick={handleAddNewUser}>
             <FaUserPlus /> Add New User
           </button>
-          <button className="action-button">
+          <button className="action-button" onClick={handleManageRoles}>
             <FaUserShield /> Manage Roles
           </button>
           <button className="action-button">
@@ -174,7 +231,7 @@ const AdminDashboard = () => {
         <div className="data-grid">
           <div className="grid-header">
             <h2>Recent Users</h2>
-            <button className="view-all-button">View All</button>
+            <button className="view-all-button" onClick={handleViewAllUsers}>View All</button>
           </div>
           <div className="grid-content">
             <table className="users-table">
@@ -187,33 +244,42 @@ const AdminDashboard = () => {
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {recentUsers.map(user => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="user-info">
-                        <div className="user-avatar">{user.name[0]}</div>
-                        <span>{user.name}</span>
-                      </div>
-                    </td>
-                    <td>{user.email}</td>
-                    <td>
-                      <span className={`role-badge ${user.role.toLowerCase()}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${user.status.toLowerCase()}`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="action-icon">
-                        <FaEllipsisV />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+            <tbody>
+                {loading ? (
+                  <tr><td colSpan="5">Loading...</td></tr>
+                ) : recentUsers.length === 0 ? (
+                  <tr><td colSpan="5">No users found.</td></tr>
+                ) : (
+                  recentUsers.map(user => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="user-info">
+                          <div className="user-avatar">{user.name[0]}</div>
+                          <span>{user.name}</span>
+                        </div>
+                      </td>
+                      <td>{user.email}</td>
+                      <td>
+                        <span className={`role-badge ${user.role.toLowerCase()}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${user.status.toLowerCase()}`}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="action-icon"
+                          onClick={() => alert(`Manage user ${user.id}`)}
+                        >
+                          <FaEllipsisV />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -222,5 +288,4 @@ const AdminDashboard = () => {
     </div>
   );
 };
-
-export default AdminDashboard;
+export default AdminDashboard; 

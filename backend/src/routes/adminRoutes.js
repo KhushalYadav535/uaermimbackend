@@ -14,6 +14,83 @@ router.get('/users', auth, isAdmin, adminController.getUsers);
 router.post('/users', auth, isAdmin, adminController.createUser);
 router.put('/users/:id', auth, isAdmin, adminController.updateUser);
 
+// Role Management Routes
+router.get('/roles', auth, isAdmin, adminController.getRoles);
+router.post('/roles', auth, isAdmin, adminController.createRole);
+router.put('/roles/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { name, description, level } = req.body;
+    const role = await Role.findByPk(req.params.id);
+    
+    if (!role) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    if (role.isSystemRole) {
+      return res.status(403).json({ error: 'Cannot modify system roles' });
+    }
+
+    // Check if new name conflicts with existing role
+    if (name !== role.name) {
+      const existingRole = await Role.findOne({ where: { name } });
+      if (existingRole) {
+        return res.status(400).json({ error: 'Role with this name already exists' });
+      }
+    }
+
+    await role.update({ name, description, level });
+
+    await ActivityLog.create({
+      action: 'role_update',
+      details: { role_id: role.id, role_name: role.name },
+      performed_by: req.user.id,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    res.json({ role });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+router.delete('/roles/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const role = await Role.findByPk(req.params.id);
+    
+    if (!role) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    if (role.isSystemRole) {
+      return res.status(403).json({ error: 'Cannot delete system roles' });
+    }
+
+    await role.destroy();
+
+    await ActivityLog.create({
+      action: 'role_delete',
+      details: { role_id: req.params.id },
+      performed_by: req.user.id,
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    res.json({ message: 'Role deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting role:', error);
+    res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Permissions Route
+router.get('/permissions', auth, isAdmin, adminController.getPermissions);
+
+// System Settings Routes
+router.get('/settings', auth, isAdmin, adminController.getSettings);
+router.put('/settings', auth, isAdmin, adminController.updateSettings);
+
 // Get User Details
 router.get('/users/:id', auth, isAdmin, async (req, res) => {
   try {
@@ -36,17 +113,37 @@ router.get('/users/:id', auth, isAdmin, async (req, res) => {
 // Update User Role
 router.put('/users/:id/role', auth, isAdmin, async (req, res) => {
   try {
-    const { role } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    ).select('-password');
+    const { role } = req.body; // changed from roleId to role to match frontend
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const roleObj = await Role.findOne({ where: { name: role } }); // find role by name
+    if (!roleObj) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    await user.setRoles([roleObj]);
     
     await ActivityLog.create({
       userId: req.params.id,
+      action: 'ROLE_UPDATE',
+      details: `Role updated to ${roleObj.name}`,
+      performedBy: req.user.id
     });
-    res.json(logs);
+
+    const updatedUser = await User.findByPk(req.params.id, {
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: Role,
+        attributes: ['id', 'name', 'description'],
+        through: { attributes: [] }
+      }]
+    });
+
+    res.json(updatedUser);
   } catch (error) {
     console.error('Error fetching activity logs:', error);
     res.status(500).json({ error: 'Failed to fetch activity logs' });

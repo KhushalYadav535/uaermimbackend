@@ -22,14 +22,16 @@ export default function RolesManagement() {
 
   const fetchRolesAndPermissions = async () => {
     try {
-      const rolesRes = await api.getRoles();
+      const [rolesRes, permissionsRes] = await Promise.all([
+        api.getRoles(),
+        api.getPermissions()
+      ]);
       setRoles(rolesRes.data.roles || []);
-      // Temporarily disable permissions until backend is ready
-      setPermissions([]);
+      setPermissions(permissionsRes.data.permissions || []);
       setLoading(false);
     } catch (err) {
-      setError('Failed to fetch roles');
-      console.error('Error:', err);
+      setError(err.response?.data?.message || 'Failed to fetch roles and permissions');
+      console.error('Error fetching roles and permissions:', err);
       setLoading(false);
     }
   };
@@ -37,18 +39,29 @@ export default function RolesManagement() {
   const handleCreateRole = async (e) => {
     e.preventDefault();
     try {
-      await api.createRole(formData);
-      fetchRolesAndPermissions();
-      setShowModal(false);
-      setFormData({ name: '', description: '', permissions: [] });
+      setError('');
+      const response = await api.createRole(formData);
+      if (response.data?.role) {
+        await fetchRolesAndPermissions();
+        setShowModal(false);
+        setFormData({ name: '', description: '', permissions: [] });
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (err) {
-      setError(err.message || 'Failed to create role');
+      setError(err.response?.data?.message || err.message || 'Failed to create role');
+      console.error('Create role error:', err);
     }
   };
 
   const handleUpdateRole = async (e) => {
     e.preventDefault();
+    if (!selectedRole) {
+      setError('No role selected for update');
+      return;
+    }
     try {
+      setError('');
       await api.updateRole(selectedRole.id, formData);
       fetchRolesAndPermissions();
       setShowModal(false);
@@ -91,45 +104,78 @@ export default function RolesManagement() {
     setShowModal(true);
   };
 
+  const handleDeleteClick = (roleId) => {
+    handleDeleteRole(roleId);
+  };
+
   if (loading) return <div className="loading">Loading roles...</div>;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="admin-container">
       <div className="admin-header">
-        <h1>Roles Management</h1>
-        <button className="btn-primary" onClick={() => openModal()}>
-          <FiPlus /> Add New Role
-        </button>
+        <h1>Role Management</h1>
+        <div className="header-actions">
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowModal(true)}
+            disabled={loading}
+          >
+            <FiPlus /> Add New Role
+          </button>
+        </div>
       </div>
 
       <div className="roles-grid">
-        {(roles || []).map(role => (
+        {roles.map(role => (
           <div key={role.id} className="role-card">
             <div className="role-card-header">
-              <h3>{role.name || 'Unnamed Role'}</h3>
-              <div className="role-actions">
-                <button className="btn-icon" onClick={() => openModal(role)}>
-                  <FiEdit2 />
-                </button>
-                {!['admin', 'user', 'super_admin'].includes(role.name) && (
-                  <button className="btn-icon delete" onClick={() => handleDeleteRole(role.id)}>
-                    <FiTrash2 />
-                  </button>
-                )}
+              <h3>{role.name}</h3>
+              {role.name === 'super_admin' && (
+                <span className="super-admin-badge">System Role</span>
+              )}
+            </div>
+            <div className="role-card-body">
+              <p>{role.description}</p>
+              <div className="permissions-list">
+                {role.permissions?.map(permission => (
+                  <span 
+                    key={permission} 
+                    className={`permission-badge ${permissions.includes(permission) ? '' : 'inactive'}`}
+                    title={permissions.includes(permission) ? permission : 'Permission no longer available'}
+                  >
+                    {permission}
+                  </span>
+                ))}
               </div>
             </div>
-            <p className="role-description">{role.description || 'No description available'}</p>
-            <div className="permissions-list">
-              <h4>Level: {role.level || 0}</h4>
-              {/* Temporarily hide permissions section until backend is ready */}
-              {/* <h4>Permissions:</h4>
-              {(role.permissions || []).map(permission => (
-                <span key={permission.id} className="permission-badge">
-                  {permission.name}
-                </span>
-              ))} */}
+            <div className="role-card-actions">
+              <button
+                className="btn-icon"
+                onClick={() => handleEditClick(role)}
+                disabled={role.name === 'super_admin' || loading}
+                title={role.name === 'super_admin' ? 'Cannot edit system role' : 'Edit role'}
+              >
+                <FiEdit2 />
+              </button>
+              <button
+                className="btn-icon delete"
+                onClick={() => handleDeleteClick(role.id)}
+                disabled={role.name === 'super_admin' || loading || role.users_count > 0}
+                title={
+                  role.name === 'super_admin' ? 'Cannot delete system role' :
+                  role.users_count > 0 ? 'Cannot delete role with assigned users' :
+                  'Delete role'
+                }
+              >
+                <FiTrash2 />
+              </button>
             </div>
+            {role.users_count > 0 && (
+              <div className="role-card-footer">
+                <span className="users-count">{role.users_count} user{role.users_count !== 1 ? 's' : ''} assigned</span>
+              </div>
+            )}
           </div>
         ))}
       </div>

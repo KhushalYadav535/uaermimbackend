@@ -86,10 +86,8 @@ router.post('/register', validateRegistration, async (req, res) => {
   }
 });
 
-// Admin login route
-router.post('/admin/login', async (req, res) => {
-  await superAdminController.authenticateSuperAdmin(req, res);
-});
+// Ensure the /admin/login route bypasses the auth middleware
+router.post('/admin/login', superAdminController.authenticateSuperAdmin);
 
 // Update the login route to match model fields
 router.post('/login', validateLogin, async (req, res) => {

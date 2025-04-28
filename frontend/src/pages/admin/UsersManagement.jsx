@@ -18,6 +18,17 @@ export default function UsersManagement() {
     password: ''
   });
 
+  // Fix for controlled/uncontrolled input warning: ensure formData fields are never undefined
+  useEffect(() => {
+    setFormData(prev => ({
+      email: prev.email || '',
+      first_name: prev.first_name || '',
+      last_name: prev.last_name || '',
+      role: prev.role || 'user',
+      password: prev.password || ''
+    }));
+  }, []);
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -37,18 +48,29 @@ export default function UsersManagement() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await api.register(formData);
-      fetchUsers();
-      setShowModal(false);
-      setFormData({ email: '', first_name: '', last_name: '', role: 'user', password: '' });
+      setError('');
+      const response = await api.register(formData);
+      if (response.data?.user) {
+        await fetchUsers();
+        setShowModal(false);
+        setFormData({ email: '', first_name: '', last_name: '', role: 'user', password: '' });
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (err) {
-      setError(err.message || 'Failed to create user');
+      setError(err.response?.data?.message || err.message || 'Failed to create user');
+      console.error('Create user error:', err);
     }
   };
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
+    if (!selectedUser) {
+      setError('No user selected for update');
+      return;
+    }
     try {
+      setError('');
       await api.updateUser(selectedUser.id, formData);
       fetchUsers();
       setShowModal(false);
@@ -156,7 +178,7 @@ export default function UsersManagement() {
                 <label>Email</label>
                 <input
                   type="email"
-                  value={formData.email}
+                  value={formData.email || ''}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
@@ -165,7 +187,7 @@ export default function UsersManagement() {
                 <label>First Name</label>
                 <input
                   type="text"
-                  value={formData.first_name}
+                  value={formData.first_name || ''}
                   onChange={e => setFormData({ ...formData, first_name: e.target.value })}
                   required
                 />
@@ -174,7 +196,7 @@ export default function UsersManagement() {
                 <label>Last Name</label>
                 <input
                   type="text"
-                  value={formData.last_name}
+                  value={formData.last_name || ''}
                   onChange={e => setFormData({ ...formData, last_name: e.target.value })}
                   required
                 />
@@ -182,12 +204,12 @@ export default function UsersManagement() {
               {modalType === 'create' && (
                 <div className="form-group">
                   <label>Password</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    required
-                  />
+                <input
+                  type="password"
+                  value={formData.password || ''}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
                 </div>
               )}
               <div className="form-group">
