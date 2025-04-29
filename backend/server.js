@@ -10,11 +10,26 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: [process.env.FRONTEND_URL || 'https://usermim.vercel.app', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'https://usermim.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5000',
+      'https://uaermimbackend.onrender.com'
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   credentials: true,
-  optionsSuccessStatus: 200
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Middleware

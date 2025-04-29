@@ -1,10 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 
-           (window.location.hostname === 'localhost' 
-             ? 'http://localhost:5000/api' 
-             : 'https://uaermimbackend.onrender.com/api'),
+  baseURL: 'https://uaermimbackend.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'

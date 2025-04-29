@@ -4,7 +4,8 @@ const allowedOrigins = [
   'https://usermim.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
-  'http://localhost:5000'
+  'http://localhost:5000',
+  'https://uaermimbackend.onrender.com'
 ];
 
 const corsOptions = {
@@ -17,9 +18,12 @@ const corsOptions = {
     }
     return callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  credentials: true,
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 module.exports = cors(corsOptions);

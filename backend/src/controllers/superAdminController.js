@@ -1,8 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const { DEV_EMAIL, DEV_PASSWORD, JWT_SECRET } = require('../../temp-config');
-
+const bcrypt = require('bcryptjs');
+require('dotenv').config();
 
 // super admin login 
 const authenticateSuperAdmin = async (req, res) => {
@@ -11,15 +10,15 @@ const authenticateSuperAdmin = async (req, res) => {
         console.log('SuperAdmin Login Attempt:', { email, password });
 
         // validate email and password
-        if (email !== DEV_EMAIL) {
+        if (email !== process.env.ADMIN_EMAIL) {
             console.error('SuperAdmin Login Failed: Invalid email');
-            return res.status(403).json({ error: "Invalid email" });
+            return res.status(403).json({ error: "Invalid credentials" });
         }
 
-        // Compare password directly with DEV_PASSWORD
-        if (password !== DEV_PASSWORD) {
+        // Compare password
+        if (password !== process.env.ADMIN_PASSWORD) {
             console.error('SuperAdmin Login Failed: Invalid password');
-            return res.status(403).json({ error: "Invalid password" });
+            return res.status(403).json({ error: "Invalid credentials" });
         }
 
         console.log('SuperAdmin Login Successful:', { email });
@@ -30,7 +29,7 @@ const authenticateSuperAdmin = async (req, res) => {
             email, 
             role: 'super_admin',
             isSuperAdmin: true 
-        }, JWT_SECRET, { expiresIn: '1h' });
+        }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         res.status(200).json({ 
             message: 'Login successful', 
