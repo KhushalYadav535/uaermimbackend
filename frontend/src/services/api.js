@@ -4,12 +4,12 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 
            (window.location.hostname === 'localhost' 
              ? 'http://localhost:5000/api' 
-             : '/api'),
+             : 'https://uaermimbackend.onrender.com/api'),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  withCredentials: false
+  withCredentials: true
 });
 
 // Request interceptor for adding auth token

@@ -1,9 +1,10 @@
 const cors = require('cors');
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'https://usermim.vercel.app',
+  'https://usermim.vercel.app',
   'http://localhost:5173',
-  'http://localhost:5174'
+  'http://localhost:5174',
+  'http://localhost:5000'
 ];
 
 const corsOptions = {
