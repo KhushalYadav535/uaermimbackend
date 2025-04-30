@@ -120,6 +120,7 @@ router.get('/activity-logs', auth, async (req, res) => {
       order: [['timestamp', 'DESC']],
       include: [{
         model: User,
+        as: 'performer',  // corrected alias to match association
         attributes: ['id', 'email', 'first_name', 'last_name'],
         required: false
       }]
@@ -242,6 +243,11 @@ router.get('/dashboard', auth, async (req, res) => {
         }
       });
       stats = { totalUsers, activeUsers, newUsers };
+    } else {
+      // For regular users, provide counts of their activity and login logs
+      const activityCount = await ActivityLog.count({ where: { userId: user.id } });
+      const loginCount = await LoginLog.count({ where: { userId: user.id } });
+      stats = { activityCount, loginCount };
     }
 
     res.json({

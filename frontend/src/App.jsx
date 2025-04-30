@@ -10,6 +10,7 @@ import UsersManagement from './pages/admin/UsersManagement';
 import RolesManagement from './pages/admin/RolesManagement';
 import LogsManagement from './pages/admin/LogsManagement';
 import SystemSettings from './pages/admin/SystemSettings';
+import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
 import PasswordResetPage from './pages/PasswordResetPage';
 import AuthCallback from './pages/AuthCallback';
@@ -36,6 +37,7 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
           {/* Admin routes */}

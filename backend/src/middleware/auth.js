@@ -29,13 +29,7 @@ const auth = async (req, res, next) => {
       return next();
     }
 
-    const user = await User.findByPk(decoded.id, {
-      include: [{
-        model: Role,
-        attributes: ['name'],
-        through: { attributes: [] }
-      }]
-    });
+    const user = await User.findByPk(decoded.id);
 
     if (!user) {
       return res.status(404).json({ 
@@ -49,9 +43,8 @@ const auth = async (req, res, next) => {
       });
     }
 
-    // Set roles as array of role names for easier checking
-    req.user = user;
-    req.user.roles = user.Roles ? user.Roles.map(role => role.name) : [];
+    // Add user and token to request
+    req.user = user.toJSON();
     req.token = token;
     next();
   } catch (error) {
@@ -71,20 +64,23 @@ const auth = async (req, res, next) => {
   }
 };
 
-const isAdmin = async (req, res, next) => {
+const isAdmin = (req, res, next) => {
   try {
-    // Check if user has admin or superadmin role
-    if (!req.user.roles?.includes('admin') && !req.user.roles?.includes('super_admin')) {
+    if (!req.user || !req.user.role) {
       return res.status(403).json({ 
-        errors: [{ msg: 'Access denied. Admin privileges required.' }]
+        errors: [{ msg: 'Access denied' }]
       });
     }
+
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ 
+        errors: [{ msg: 'Access denied' }]
+      });
+    }
+
     next();
   } catch (error) {
-    console.error('isAdmin middleware error:', error);
-    res.status(500).json({ 
-      errors: [{ msg: 'Internal server error' }]
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 

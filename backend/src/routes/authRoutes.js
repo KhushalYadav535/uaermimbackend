@@ -100,6 +100,7 @@ router.post('/login', validateLogin, async (req, res) => {
       where: { email },
       include: [{
         model: Role,
+        as: 'roles',
         attributes: ['id', 'name', 'description'],
         through: { attributes: [] }
       }]
@@ -134,7 +135,7 @@ router.post('/login', validateLogin, async (req, res) => {
     }
 
     // Get user roles
-    const userRoles = user.Roles.map(role => role.name);
+    const userRoles = user.roles.map(role => role.name);
     console.log('User roles:', userRoles);
 
     // Update last login
@@ -157,8 +158,8 @@ router.post('/login', validateLogin, async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        first_name: user.firstName,
-        last_name: user.lastName,
+        first_name: user.firstName || user.first_name,
+        last_name: user.lastName || user.last_name,
         email: user.email,
         roles: userRoles,
         isAdmin: userRoles.includes('admin'),
@@ -206,6 +207,7 @@ router.get('/profile', async (req, res) => {
       where: { id: decoded.id },
       include: [{
         model: Role,
+        as: 'roles',
         attributes: ['id', 'name', 'description'],
         through: { attributes: [] }
       }]
@@ -218,7 +220,7 @@ router.get('/profile', async (req, res) => {
     }
 
     // Get user roles
-    const userRoles = user.Roles.map(role => role.name);
+    const userRoles = user.roles.map(role => role.name);
 
     res.json({
       user: {
@@ -239,7 +241,7 @@ router.get('/profile', async (req, res) => {
     }
     console.error('Profile error:', error);
     res.status(500).json({
-      errors: [{ msg: 'Error fetching profile' }]
+      errors: [{ msg: 'Error fetching profile', error: error.message }]
     });
   }
 });

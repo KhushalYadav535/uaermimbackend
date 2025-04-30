@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://uaermimbackend.onrender.com/api',
+  baseURL: 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -88,5 +88,7 @@ const apiService = {
     return api[method](url, data, config);
   };
 });
+
+apiService.getDashboardStats = () => api.get('/users/dashboard');
 
 export default apiService;
